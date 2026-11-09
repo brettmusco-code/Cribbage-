@@ -12,7 +12,12 @@ A cribbage pegging board for your phone. Tap to score, and the pegs leapfrog alo
 - **Guided counting.** Each hand goes pegging, then each hand in order from the dealer's left, then the crib. The deal passes on its own, and the game ends the moment someone reaches 121.
 - **Undo** for every step, including a win.
 - **Skunk and double-skunk detection**, a match tally, and the loser deals first in the next game.
-- **Five board styles**: Walnut, Maple, Ebony, Card table (green felt) and Slate. Pick one in Settings.
+- **Five board designs**, each with its own track shape. Pick one in Settings:
+  - **Walnut, Classic:** four straight streets that run back and forth.
+  - **Maple, Racetrack:** one long lap around an oval.
+  - **Ebony, Spiral:** winds inward and finishes in the centre.
+  - **Card table, Columns:** six up-and-down columns on green felt.
+  - **Slate, Wave:** three long wavy streets.
 - **Game recap chart** at the end of each game, with points from pegging, hands and crib.
 - **History tab**: wins, win %, average hand, average crib, pegging per game, best hand, skunks, and every past game with its chart.
 - **Installs to your home screen** and works offline.

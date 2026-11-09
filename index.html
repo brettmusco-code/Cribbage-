@@ -129,10 +129,12 @@ button { cursor: pointer; }
   box-shadow: 0 12px 26px rgba(0,0,0,.24), 0 2px 4px rgba(0,0,0,.2);
 }
 .board svg { display: block; width: 100%; height: auto; }
-.board .lane { stroke-width: 8; stroke-linecap: round; opacity: .26; }
+.board .lane { fill: none; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; opacity: .26; }
 .board .turn { fill: none; stroke: var(--brass); stroke-opacity: .6; stroke-width: 1.2; }
 .board .lbl { fill: var(--brass); font-family: var(--font-num); font-weight: 600; font-size: 5.6px; letter-spacing: .12em; }
-.board .num { fill: var(--brass); opacity: .8; font-family: var(--font-num); font-weight: 600; font-size: 5.2px; text-anchor: middle; }
+.board .num { fill: var(--brass); opacity: .8; font-family: var(--font-num); font-weight: 600; font-size: 5.2px; text-anchor: middle; dominant-baseline: central; }
+.board .skunk { stroke: var(--brass); stroke-width: 1.1; stroke-linecap: round; opacity: .85; }
+.board .sk { dominant-baseline: central; font-size: 5px; letter-spacing: .04em; }
 .board .pip { fill: var(--brass); opacity: .55; }
 .board .engrave { font-family: var(--font-display); font-weight: 700; font-size: 8px; letter-spacing: .32em; text-anchor: middle; dominant-baseline: central; }
 .board .finish-ring { fill: none; stroke: var(--brass); stroke-width: 1; stroke-opacity: .7; }
@@ -501,7 +503,9 @@ dialog h3 {
 .styles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .style-opt { position: relative; display: grid; gap: 4px; cursor: pointer; font-size: .8rem; color: var(--muted); text-align: center; line-height: 1.15; }
 .style-opt input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
-.style-opt .sw-board { display: block; height: 48px; border-radius: 8px; border: 2px solid transparent; }
+.style-opt .sw-board { display: block; height: 52px; border-radius: 8px; border: 2px solid transparent; overflow: hidden; }
+.style-opt .sw-board svg { display: block; width: 100%; height: 100%; }
+.style-opt .st-shape { display: block; font-size: .72rem; color: var(--muted); font-weight: 400; }
 .style-opt input:checked + .sw-board { border-color: var(--accent); outline: 2px solid var(--accent); }
 .style-opt input:checked ~ .st-name { color: var(--ink); font-weight: 700; }
 .style-opt input:focus-visible + .sw-board { outline: 2.5px solid var(--accent); outline-offset: 2px; }
@@ -663,9 +667,9 @@ dialog h3 {
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var clientId = "c" + Math.random().toString(36).slice(2, 10);
 
-  // Board geometry (SVG user units). Four streets of 30 holes; the middle gap holds the inlay.
-  var HS = 10, GG = 6, RS = 12, GAP = 24, GAP_MID = 40, TOP = 20, BOT = 24;
-  var X0 = 46, ROWW = 29 * HS + 5 * GG, W = X0 + ROWW + 32;
+  // Board geometry (SVG user units): lanes sit RS apart across the track
+  var RS = 12;
+  var GEO = null;
 
   var state;
   var pegEls = [];
@@ -749,23 +753,216 @@ dialog h3 {
     return countOrder()[state.step] || null;
   }
 
-  // ---------- Board geometry ----------
-  function streetH() { return (nSides() - 1) * RS; }
-  function streetTop(k) {
-    var gaps = [0, GAP, GAP + GAP_MID, GAP + GAP_MID + GAP][k];
-    return TOP + k * streetH() + gaps;
+  // ---------- Track geometry ----------
+  // Each board style has its own track shape. A shape is a set of runs (centre lines that carry holes)
+  // and links (decorative grooves between runs). Holes sit along each run at even spacing, in groups of five,
+  // and every lane is the run's centre line pushed sideways along its normal.
+  function tangentOf(a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; }
+  function Poly(pts) {
+    var cum = [0];
+    for (var i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    return { pts: pts, cum: cum, L: cum[cum.length - 1] };
   }
-  function yRow(k, p) { return streetTop(k) + p * RS; }
-  function streetMid(k) { return streetTop(k) + streetH() / 2; }
-  function holeX(col) { return X0 + col * HS + Math.floor(col / 5) * GG; }
-  function finishXY() { return [X0 - 19, streetMid(3)]; }
+  function at(poly, s) {
+    var p = poly.pts, c = poly.cum, n = p.length - 1, t;
+    if (s <= 0) { t = tangentOf(p[0], p[1]); return { x: p[0][0] + t[0] * s, y: p[0][1] + t[1] * s, tx: t[0], ty: t[1] }; }
+    if (s >= poly.L) { t = tangentOf(p[n - 1], p[n]); var e = s - poly.L; return { x: p[n][0] + t[0] * e, y: p[n][1] + t[1] * e, tx: t[0], ty: t[1] }; }
+    var lo = 0, hi = n;
+    while (hi - lo > 1) { var mid = (lo + hi) >> 1; if (c[mid] <= s) lo = mid; else hi = mid; }
+    var f = (s - c[lo]) / ((c[hi] - c[lo]) || 1);
+    t = tangentOf(p[lo], p[hi]);
+    return { x: p[lo][0] + (p[hi][0] - p[lo][0]) * f, y: p[lo][1] + (p[hi][1] - p[lo][1]) * f, tx: t[0], ty: t[1] };
+  }
+  // Positive offsets go to the right of the direction of travel (down, for a run heading right)
+  function offset(pt, o) { return [pt.x - pt.ty * o, pt.y + pt.tx * o]; }
+  function lineP(x0, y0, x1, y1) {
+    var n = Math.max(2, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 3)), a = [];
+    for (var i = 0; i <= n; i++) a.push([x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n]);
+    return a;
+  }
+  function arcP(cx, cy, rx, ry, a0, a1) {
+    var n = Math.max(12, Math.ceil(Math.abs(a1 - a0) * Math.max(rx, ry) / 2)), a = [];
+    for (var i = 0; i <= n; i++) { var t = a0 + (a1 - a0) * i / n; a.push([cx + rx * Math.cos(t), cy + ry * Math.sin(t)]); }
+    return a;
+  }
+  function uturn(p0, p1, bx, by) {
+    var c0 = [p0[0] + bx, p0[1] + by], c1 = [p1[0] + bx, p1[1] + by], a = [];
+    for (var i = 0; i <= 24; i++) {
+      var t = i / 24, u = 1 - t;
+      a.push([u * u * u * p0[0] + 3 * u * u * t * c0[0] + 3 * u * t * t * c1[0] + t * t * t * p1[0],
+              u * u * u * p0[1] + 3 * u * u * t * c0[1] + 3 * u * t * t * c1[1] + t * t * t * p1[1]]);
+    }
+    return a;
+  }
+  function joinP() {
+    var out = [];
+    for (var i = 0; i < arguments.length; i++) arguments[i].forEach(function (p, j) { if (j || !out.length) out.push(p); });
+    return out;
+  }
+  // Bend in radians per unit length around s
+  function curvature(poly, s) {
+    var a = at(poly, s - 3), b = at(poly, s + 3);
+    return Math.abs(Math.atan2(a.tx * b.ty - a.ty * b.tx, a.tx * b.tx + a.ty * b.ty)) / 6;
+  }
+  // Hole positions along a run. On a bend the step grows so the inside lane keeps full spacing.
+  function placeHoles(poly, count, s0, hs, gg, half) {
+    var out = [], sv = s0;
+    for (var i = 0; i < count; i++) {
+      if (i) {
+        var step = i % 5 === 0 ? hs + gg : hs;
+        sv += step / Math.max(0.35, 1 - half * curvature(poly, sv + step / 2));
+      }
+      out.push(sv);
+    }
+    return out;
+  }
+  function toD(pts) { return "M" + pts.map(function (p) { return p[0].toFixed(1) + " " + p[1].toFixed(1); }).join("L"); }
+
+  var LAYOUTS = {
+    // Four straight streets of 30, back and forth, with the inlay between the second and third
+    classic: function (N) {
+      var LW = (N - 1) * RS, half = LW / 2, X0 = 46, ROWW = 320, TOP = 20, gaps = [0, 24, 64, 88];
+      var yc = function (k) { return TOP + half + k * LW + gaps[k]; };
+      var runs = [];
+      for (var k = 0; k < 4; k++) {
+        runs.push({ pts: k % 2 === 0 ? lineP(X0, yc(k), X0 + ROWW, yc(k)) : lineP(X0 + ROWW, yc(k), X0, yc(k)),
+          count: 30, s0: 0, hs: 10, gg: 6, side: [-1, 1, 1, -1][k] });
+      }
+      var midY = (yc(1) + yc(2)) / 2;
+      return {
+        W: X0 + ROWW + 32, H: yc(3) + half + 24, runs: runs,
+        links: [uturn([X0 + ROWW + 7, yc(0)], [X0 + ROWW + 7, yc(1)], 9, 0), uturn([X0 - 7, yc(1)], [X0 - 7, yc(2)], -9, 0),
+          uturn([X0 + ROWW + 7, yc(2)], [X0 + ROWW + 7, yc(3)], 9, 0)],
+        finish: [X0 - 19, yc(3)], startLabel: [X0 - 19, TOP - 8], finishLabel: [X0 - 19, yc(3) + 16],
+        inlay: { x: X0 - 3, y: midY - 8, w: ROWW + 6, h: 16 },
+        skunkLabels: { 90: [X0 + ROWW + 22, (yc(2) + yc(3)) / 2, 90], 60: [X0 - 22, midY, -90] }
+      };
+    },
+    // One lap of 120 around an oval, with the inlay in the infield
+    oval: function (N) {
+      var LW = (N - 1) * RS, half = LW / 2, R = 96, Ls = 280, m = half + 28, pts, poly, holeS, lx, rx, cy;
+      for (var it = 0; it < 12; it++) {
+        lx = m + R; rx = lx + Ls; cy = m + R;
+        pts = joinP(lineP(lx, m, rx, m), arcP(rx, cy, R, R, -Math.PI / 2, Math.PI / 2),
+          lineP(rx, cy + R, lx, cy + R), arcP(lx, cy, R, R, Math.PI / 2, Math.PI * 1.5));
+        poly = Poly(pts);
+        holeS = placeHoles(poly, 120, 50, 8, 5, half);
+        var short = holeS[119] + 64 - poly.L;
+        if (short <= 0) break;
+        Ls += short / 2 + 2;
+      }
+      var fin = at(poly, poly.L - 30);
+      return {
+        W: 2 * m + 2 * R + Ls, H: 2 * m + 2 * R, runs: [{ pts: pts, poly: poly, holeS: holeS, count: 120, s0: 50, hs: 8, gg: 5, side: -1 }], links: [],
+        finish: [fin.x, fin.y], startLabel: offset(at(poly, 31), -(half + 11)), finishLabel: offset(fin, -(half + 15)),
+        inlay: { x: lx + 4, y: cy - 9, w: Ls - 8, h: 18 }
+      };
+    },
+    // An oval spiral that winds inward and finishes in the centre
+    spiral: function (N) {
+      var LW = (N - 1) * RS, half = LW / 2, P = LW + 28, kx = 1.4, r0 = 46, m = half + 26;
+      var T, pts, poly, r1, cx, cy, holeS;
+      for (T = 1.5; T <= 6; T += 0.125) {
+        r1 = r0 + P * T; cx = m + kx * r1; cy = m + r1; pts = [];
+        var steps = Math.ceil(T * 360);
+        for (var i = 0; i <= steps; i++) {
+          var th = (i / steps) * T * 2 * Math.PI, a = r1 - P * th / (2 * Math.PI);
+          pts.push([cx + kx * a * Math.cos(th - Math.PI / 2), cy + a * Math.sin(th - Math.PI / 2)]);
+        }
+        poly = Poly(pts);
+        holeS = placeHoles(poly, 120, 30, 9, 5, half);
+        if (holeS[119] + 40 <= poly.L) break;
+      }
+      return {
+        W: 2 * cx, H: 2 * cy, runs: [{ pts: pts, poly: poly, holeS: holeS, count: 120, s0: 30, hs: 9, gg: 5, side: -1 }], links: [],
+        finish: [cx, cy], startLabel: offset(at(poly, 11), -(half + 11)), finishLabel: [cx, cy + 17],
+        inlay: null, cornerSuits: true
+      };
+    },
+    // Six columns of 20, down and up
+    columns: function (N) {
+      var LW = (N - 1) * RS, half = LW / 2, pitch = LW + 30, X0 = 30 + half, TOP = 48, RUN = 208;
+      var xc = function (c) { return X0 + c * pitch; };
+      var runs = [], links = [];
+      for (var c = 0; c < 6; c++) {
+        var down = c % 2 === 0;
+        runs.push({ pts: down ? lineP(xc(c), TOP, xc(c), TOP + RUN) : lineP(xc(c), TOP + RUN, xc(c), TOP),
+          count: 20, s0: 0, hs: 10, gg: 6, side: down ? -1 : 1 });
+        if (c < 5) links.push(down ? uturn([xc(c), TOP + RUN + 7], [xc(c + 1), TOP + RUN + 7], 0, 10)
+                                   : uturn([xc(c), TOP - 7], [xc(c + 1), TOP - 7], 0, -10));
+      }
+      return {
+        W: xc(5) + half + 34, H: TOP + RUN + 60, runs: runs, links: links,
+        finish: [xc(5), TOP - 24], startLabel: [xc(0), 11], finishLabel: [xc(5) + 19, TOP - 24],
+        inlay: { x: X0 - half - 4, y: TOP + RUN + 26, w: 5 * pitch + LW + 8, h: 18 }
+      };
+    },
+    // Three long wavy streets of 40
+    wave: function (N) {
+      var LW = (N - 1) * RS, half = LW / 2, A = 6, lam = 140, X0 = 48, TOP = 22;
+      var runLen = 4 + 39 * 9 + 7 * 5 + 4;
+      var sinePts = function (span, y, ltr) {
+        var n = Math.ceil(span / 2), a = [];
+        for (var i = 0; i <= n; i++) { var x = X0 + span * i / n; a.push([x, y + A * Math.sin(2 * Math.PI * (x - X0) / lam)]); }
+        return ltr ? a : a.reverse();
+      };
+      var span = runLen;
+      for (var it = 0; it < 6; it++) span *= runLen / Poly(sinePts(span, 0, true)).L;
+      for (var it2 = 0; it2 < 8; it2++) {
+        var tp = Poly(sinePts(span, 0, true)), hsv = placeHoles(tp, 40, 4, 9, 5, half);
+        var over = hsv[39] + 4 - tp.L;
+        if (over <= 0) break;
+        span += over + 1;
+      }
+      var pitch = LW + 2 * A + 26;
+      var yc = function (k) { return TOP + half + A + k * pitch; };
+      var runs = [0, 1, 2].map(function (k) {
+        return { pts: sinePts(span, yc(k), k % 2 === 0), count: 40, s0: 4, hs: 9, gg: 5, side: [-1, 1, 1][k] };
+      });
+      var end = function (k) { var p = runs[k].pts; return p[p.length - 1]; };
+      var beg = function (k) { return runs[k].pts[0]; };
+      var e2 = end(2);
+      return {
+        W: X0 + span + 36, H: yc(2) + half + A + 46, runs: runs,
+        links: [uturn([end(0)[0] + 7, end(0)[1]], [beg(1)[0] + 7, beg(1)[1]], 9, 0), uturn([end(1)[0] - 7, end(1)[1]], [beg(2)[0] - 7, beg(2)[1]], -9, 0)],
+        finish: [e2[0] + 20, e2[1]], startLabel: [X0 - 17, TOP - 7], finishLabel: [e2[0] + 20, e2[1] + 16],
+        inlay: { x: X0 - 3, y: yc(2) + half + A + 18, w: span + 6, h: 18 }
+      };
+    }
+  };
+
+  function laneD(run, o) {
+    var pts = [];
+    for (var s = run.firstS - 4; s < run.lastS + 4; s += 2) pts.push(offset(at(run.poly, s), o));
+    pts.push(offset(at(run.poly, run.lastS + 4), o));
+    return toD(pts);
+  }
+
+  function computeGeo(name, N) {
+    var L = (LAYOUTS[name] || LAYOUTS.classic)(N);
+    var half = (N - 1) * RS / 2, holes = [], center = [], start = [], l;
+    for (l = 0; l < N; l++) holes.push([]);
+    L.runs.forEach(function (run) {
+      if (!run.poly) run.poly = Poly(run.pts);
+      if (!run.holeS) run.holeS = placeHoles(run.poly, run.count, run.s0, run.hs, run.gg, half);
+      run.firstS = run.holeS[0];
+      run.lastS = run.holeS[run.count - 1];
+      for (var i = 0; i < run.count; i++) {
+        var sv = run.holeS[i], pt = at(run.poly, sv);
+        center.push({ pt: pt, run: run, s: sv });
+        for (var k = 0; k < N; k++) holes[k].push(offset(pt, (k - (N - 1) / 2) * RS));
+      }
+    });
+    var r0 = L.runs[0], a = at(r0.poly, r0.s0 - 14), b = at(r0.poly, r0.s0 - 24);
+    for (l = 0; l < N; l++) { var o = (l - (N - 1) / 2) * RS; start.push([offset(a, o), offset(b, o)]); }
+    L.N = N; L.half = half; L.holes = holes; L.center = center; L.start = start;
+    return L;
+  }
 
   function pos(s, lane, ei) {
-    if (s <= 0) return [X0 - (ei === 0 ? 14 : 24), yRow(0, lane)];
-    if (s >= 121) return finishXY();
-    var k = Math.floor((s - 1) / 30), i = (s - 1) % 30;
-    var col = k % 2 === 0 ? i : 29 - i;
-    return [holeX(col), yRow(k, lane)];
+    if (s <= 0) return GEO.start[lane][ei];
+    if (s >= 121) return GEO.finish;
+    return GEO.holes[lane][s - 1];
   }
 
   function el(tag, attrs, parent) {
@@ -795,23 +992,23 @@ dialog h3 {
   var SKEY = "cribbage-style-v1";
   var BRASS = ["#fbe7b0", "#c9973f", "#7a5520"];
   var STYLES = {
-    walnut: { name: "Walnut", base: ["#8d5531", "#643519", "#4a2512"], grain: "wood", gd: 0.55, gl: 0.14,
+    walnut: { name: "Walnut", shape: "Classic", layout: "classic", base: ["#8d5531", "#643519", "#4a2512"], grain: "wood", gd: 0.55, gl: 0.14,
       label: "#dcbb70", metal: BRASS, slot: "#5a3d15", inlay: "#d8ae76", inlayGrain: true, inlayText: "#5b3215",
       suitDark: "#21130a", suitRed: "#a3301f", hole: ["#050201", "#170b04", "#3a210f"], rim: "rgba(255,222,176,.17)",
       lane: 0.26, edge: "rgba(0,0,0,.38)", edgeHi: "rgba(255,226,180,.13)" },
-    maple: { name: "Maple", base: ["#ecd0a4", "#dcb782", "#c99f69"], grain: "wood", gd: 0.3, gl: 0.22,
+    maple: { name: "Maple", shape: "Racetrack", layout: "oval", base: ["#ecd0a4", "#dcb782", "#c99f69"], grain: "wood", gd: 0.3, gl: 0.22,
       label: "#6b4318", metal: BRASS, slot: "#5a3d15", inlay: "#5a3319", inlayGrain: false, inlayText: "#f0dcb8",
       suitDark: "#f4e6cc", suitRed: "#ef8a74", hole: ["#050201", "#1b0e05", "#4a2c14"], rim: "rgba(255,255,255,.4)",
       lane: 0.34, edge: "rgba(80,45,15,.45)", edgeHi: "rgba(255,255,255,.35)" },
-    ebony: { name: "Ebony", base: ["#3a302b", "#221c19", "#141110"], grain: "wood", gd: 0.5, gl: 0.07,
+    ebony: { name: "Ebony", shape: "Spiral", layout: "spiral", base: ["#3a302b", "#221c19", "#141110"], grain: "wood", gd: 0.5, gl: 0.07,
       label: "#d9b45f", metal: BRASS, slot: "#5a3d15", inlay: "#c9a04a", inlayGrain: false, inlayText: "#2a1c08",
       suitDark: "#1a120a", suitRed: "#7a1d12", hole: ["#000000", "#060504", "#2a2420"], rim: "rgba(255,230,190,.10)",
       ring: "rgba(217,180,95,.45)", lane: 0.4, edge: "rgba(0,0,0,.5)", edgeHi: "rgba(217,180,95,.25)" },
-    felt: { name: "Card table", base: ["#2f7d51", "#246841", "#1a5133"], grain: "felt", gd: 0.35, gl: 0.08,
+    felt: { name: "Card table", shape: "Columns", layout: "columns", base: ["#2f7d51", "#246841", "#1a5133"], grain: "felt", gd: 0.35, gl: 0.08,
       label: "#f1d98f", metal: BRASS, slot: "#5a3d15", inlay: "#f1e9d6", inlayGrain: false, inlayText: "#1f3b2b",
       suitDark: "#1b1b1b", suitRed: "#b3261e", hole: ["#03100a", "#0a2116", "#1f4a32"], rim: "rgba(255,255,255,.13)",
       lane: 0.34, frame: { color: "#4a2c17", width: 7 } },
-    slate: { name: "Slate", base: ["#434b53", "#343b42", "#2a3036"], grain: "none", gd: 0, gl: 0,
+    slate: { name: "Slate", shape: "Wave", layout: "wave", base: ["#434b53", "#343b42", "#2a3036"], grain: "none", gd: 0, gl: 0,
       label: "#cfd6dc", metal: ["#ffffff", "#aab3bb", "#5d666f"], slot: "#3a4148", inlay: "#525c66", inlayGrain: false,
       inlayText: "#e9eef2", suitDark: "#e9eef2", suitRed: "#ff8a80", hole: ["#08090b", "#121518", "#3b434a"],
       rim: "rgba(255,255,255,.10)", ring: "rgba(255,255,255,.14)", lane: 0.36, edge: "rgba(0,0,0,.35)", edgeHi: "rgba(255,255,255,.08)" }
@@ -873,9 +1070,9 @@ dialog h3 {
 
   function buildBoard() {
     var S = curStyle();
-    var P = nSides();
-    var H = yRow(3, P - 1) + BOT;
-    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    GEO = computeGeo(S.layout, nSides());
+    var W = GEO.W, H = GEO.H, half = GEO.half, P = GEO.N;
+    svg.setAttribute("viewBox", "0 0 " + W.toFixed(1) + " " + H.toFixed(1));
     // Keep the whole board under about two thirds of the window height so the scoring cards stay in view
     boardWrap.style.maxWidth = "calc(" + (W / H).toFixed(3) + " * 66vh)";
     boardWrap.style.setProperty("--brass", S.label);
@@ -904,65 +1101,85 @@ dialog h3 {
         transform: "translate(" + s[0] + " " + s[1] + ") rotate(" + s[2] + ")" }, svg);
     });
 
-    var midY = (yRow(1, P - 1) + yRow(2, 0)) / 2;
-    var bx = X0 - 3, bw = ROWW + 6, bh = 16;
-    el("rect", { x: bx, y: midY - bh / 2, width: bw, height: bh, rx: 3, fill: S.inlay }, svg);
-    if (S.inlayGrain) el("rect", { x: bx, y: midY - bh / 2, width: bw, height: bh, rx: 3, filter: "url(#grainMaple)", opacity: 0.5 }, svg);
-    el("rect", { x: bx, y: midY - bh / 2, width: bw, height: bh, rx: 3, fill: "none", stroke: "url(#brassGrad)", "stroke-width": 1.1 }, svg);
-    var cx = X0 + ROWW / 2;
-    var engr = text("CRIBBAGE", { "class": "engrave", x: cx, y: midY + 0.4, fill: S.inlayText }, svg);
-    engr.setAttribute("fill-opacity", "0.9");
     var order = ["spade", "heart", "club", "diamond"];
-    for (var i = 0; i < 4; i++) {
-      [-1, 1].forEach(function (dir) {
-        var name = dir < 0 ? order[3 - i] : order[i];
-        var red = name === "heart" || name === "diamond";
-        el("use", { href: "#suit-" + name, x: cx + dir * (56 + i * 30), y: midY, fill: red ? S.suitRed : S.suitDark }, svg);
+    var suitFill = function (name) { return name === "heart" || name === "diamond" ? S.suitRed : S.suitDark; };
+    if (GEO.inlay) {
+      var I = GEO.inlay, icx = I.x + I.w / 2, icy = I.y + I.h / 2;
+      el("rect", { x: I.x, y: I.y, width: I.w, height: I.h, rx: 3, fill: S.inlay }, svg);
+      if (S.inlayGrain) el("rect", { x: I.x, y: I.y, width: I.w, height: I.h, rx: 3, filter: "url(#grainMaple)", opacity: 0.5 }, svg);
+      el("rect", { x: I.x, y: I.y, width: I.w, height: I.h, rx: 3, fill: "none", stroke: "url(#brassGrad)", "stroke-width": 1.1 }, svg);
+      var engr = text("CRIBBAGE", { "class": "engrave", x: icx, y: icy + 0.4, fill: S.inlayText }, svg);
+      engr.setAttribute("fill-opacity", "0.9");
+      for (var i = 0; i < 4; i++) {
+        var d = 48 + i * Math.max(16, (I.w / 2 - 62) / 3.3);
+        if (d > I.w / 2 - 8) break;
+        [-1, 1].forEach(function (dir) {
+          var name = dir < 0 ? order[3 - i] : order[i];
+          el("use", { href: "#suit-" + name, x: icx + dir * d, y: icy, fill: suitFill(name) }, svg);
+        });
+      }
+    }
+    if (GEO.cornerSuits) {
+      [[30, 30], [W - 30, 30], [W - 30, H - 30], [30, H - 30]].forEach(function (c, i) {
+        el("use", { href: "#suit-" + order[i], x: 0, y: 0, fill: suitFill(order[i]), opacity: 0.9,
+          transform: "translate(" + c[0] + " " + c[1] + ") scale(2)" }, svg);
       });
     }
 
-    var k, p, c;
-    for (k = 0; k < 4; k++) for (p = 0; p < P; p++) {
-      var ln = el("line", { "class": "lane", x1: X0 - 3, x2: X0 + ROWW + 3, y1: yRow(k, p), y2: yRow(k, p) }, svg);
-      ln.style.stroke = COLORS[p];
-      ln.style.opacity = S.lane;
-    }
-    for (k = 0; k < 3; k++) {
-      var y1 = streetMid(k), y2 = streetMid(k + 1), ry = (y2 - y1) / 2;
-      var right = k % 2 === 0;
-      var x = right ? X0 + ROWW + 7 : X0 - 7;
-      el("path", { "class": "turn", d: "M" + x + " " + y1 + " A 7 " + ry + " 0 0 " + (right ? 1 : 0) + " " + x + " " + y2 }, svg);
-    }
-    text("SKUNK", { "class": "lbl", "text-anchor": "middle",
-      transform: "translate(" + (X0 + ROWW + 21) + " " + ((streetMid(2) + streetMid(3)) / 2) + ") rotate(90)" }, svg);
-    text("DOUBLE", { "class": "lbl", "text-anchor": "middle",
-      transform: "translate(" + (X0 - 21) + " " + ((streetMid(1) + streetMid(2)) / 2) + ") rotate(-90)" }, svg);
-    text("START", { "class": "lbl", "text-anchor": "middle", x: X0 - 19, y: TOP - 8 }, svg);
+    var k, p;
+    // Coloured lanes follow each run
+    GEO.runs.forEach(function (run) {
+      for (var l = 0; l < P; l++) {
+        var ln = el("path", { "class": "lane", d: laneD(run, (l - (P - 1) / 2) * RS) }, svg);
+        ln.style.stroke = COLORS[l];
+        ln.style.opacity = S.lane;
+      }
+    });
+    GEO.links.forEach(function (pts) { el("path", { "class": "turn", d: toD(pts) }, svg); });
 
-    for (var s = 5; s <= 120; s += 5) {
-      var sk = Math.floor((s - 1) / 30);
-      var hx = pos(s, 0, 0)[0];
-      var ly = sk < 2 ? yRow(sk, 0) - 7.5 : yRow(sk, P - 1) + 11;
-      if (s % 10 === 0) text(String(s), { "class": "num", x: hx, y: ly }, svg);
-      else el("circle", { "class": "pip", cx: hx, cy: ly - 1.8, r: 0.8 }, svg);
+    text("START", { "class": "lbl", "text-anchor": "middle", "dominant-baseline": "central", x: GEO.startLabel[0], y: GEO.startLabel[1] }, svg);
+
+    // Hole numbers every 10, small pips every 5
+    for (k = 5; k <= 120; k += 5) {
+      var c = GEO.center[k - 1], q = offset(c.pt, c.run.side * (half + 9));
+      if (k % 10 === 0) text(String(k), { "class": "num", x: q[0], y: q[1] }, svg);
+      else el("circle", { "class": "pip", cx: q[0], cy: q[1], r: 0.8 }, svg);
     }
+
+    // Skunk lines: after hole 90 (skunk) and hole 60 (double skunk)
+    [[60, "SS", "DOUBLE"], [90, "S", "SKUNK"]].forEach(function (mk) {
+      var c = GEO.center[mk[0] - 1];
+      var pt = at(c.run.poly, c.s + (c.run.hs + c.run.gg) / 2);
+      var a = offset(pt, -(half + 5)), b = offset(pt, half + 5);
+      el("line", { "class": "skunk", x1: a[0], y1: a[1], x2: b[0], y2: b[1] }, svg);
+      var lab = GEO.skunkLabels && GEO.skunkLabels[mk[0]];
+      if (lab) {
+        text(mk[2], { "class": "lbl", "text-anchor": "middle", transform: "translate(" + lab[0] + " " + lab[1] + ") rotate(" + lab[2] + ")" }, svg);
+      } else {
+        var q2 = offset(pt, -c.run.side * (half + 8));
+        text(mk[1], { "class": "lbl sk", "text-anchor": "middle", x: q2[0], y: q2[1] }, svg);
+      }
+    });
 
     function drill(cx, cy, r) {
       el("circle", { cx: cx, cy: cy + 0.55, r: r + 0.2, fill: S.rim }, svg);
       var h = el("circle", { cx: cx, cy: cy, r: r, fill: "url(#holeGrad)" }, svg);
       if (S.ring) { h.setAttribute("stroke", S.ring); h.setAttribute("stroke-width", 0.6); }
     }
-    for (k = 0; k < 4; k++) for (p = 0; p < P; p++) for (c = 0; c < 30; c++) drill(holeX(c), yRow(k, p), 2.5);
-    for (p = 0; p < P; p++) { drill(X0 - 14, yRow(0, p), 2.5); drill(X0 - 24, yRow(0, p), 2.5); }
+    for (p = 0; p < P; p++) {
+      GEO.holes[p].forEach(function (h) { drill(h[0], h[1], 2.5); });
+      drill(GEO.start[p][0][0], GEO.start[p][0][1], 2.5);
+      drill(GEO.start[p][1][0], GEO.start[p][1][1], 2.5);
+    }
 
-    var f = finishXY();
+    var f = GEO.finish;
     el("circle", { "class": "finish-ring", cx: f[0], cy: f[1], r: 6.4 }, svg);
-    for (var a = 0; a < 8; a++) {
-      var ang = a * Math.PI / 4;
+    for (var a2 = 0; a2 < 8; a2++) {
+      var ang = a2 * Math.PI / 4;
       el("circle", { cx: f[0] + Math.cos(ang) * 9, cy: f[1] + Math.sin(ang) * 9, r: 0.9, fill: "url(#brassGrad)" }, svg);
     }
     drill(f[0], f[1], 3.4);
-    text("121", { "class": "lbl", "text-anchor": "middle", x: f[0], y: f[1] + 16 }, svg);
+    text("121", { "class": "lbl", "text-anchor": "middle", "dominant-baseline": "central", x: GEO.finishLabel[0], y: GEO.finishLabel[1] }, svg);
 
     // Pegs: two per side. A soft glow in the side's colour, a dark outline and a white rim keep them readable on every board.
     pegEls = [];
@@ -1974,17 +2191,20 @@ dialog h3 {
   function buildStyleOpts() {
     var box = document.getElementById("styleOpts");
     box.innerHTML = STYLE_ORDER.map(function (k) {
-      var S = STYLES[k];
-      var dots = function (y) { return "radial-gradient(circle, " + S.hole[0] + " 0 1.4px, transparent 1.9px) 2px " + y + "px / 8px 8px repeat-x"; };
-      var peg = function (c, x, y) {
-        return "radial-gradient(circle, " + c + " 0 2.2px, #fff 2.3px 2.9px, rgba(0,0,0,.55) 3px 3.4px, transparent 3.6px) " + x + "px " + y + "px / 8px 8px no-repeat";
-      };
-      var bg = [peg("var(--p0)", 26, 1), peg("var(--p1)", 42, 9), dots(1), dots(9),
-        "linear-gradient(" + S.inlay + ", " + S.inlay + ") 4px 19px / calc(100% - 8px) 6px no-repeat",
-        dots(29), dots(37), "linear-gradient(170deg, " + S.base[0] + ", " + S.base[1] + " 55%, " + S.base[2] + ")"].join(", ");
-      var frame = S.frame ? "box-shadow: inset 0 0 0 3px " + S.frame.color + ";" : "box-shadow: 0 1px 3px rgba(0,0,0,.25);";
+      var S = STYLES[k], G = computeGeo(S.layout, 2);
+      var lanes = G.runs.map(function (run) {
+        return [-1, 1].map(function (sg, l) {
+          return '<path d="' + laneD(run, sg * RS / 2) + '" fill="none" stroke="' + COLORS[l] + '" stroke-width="8" stroke-linecap="round" opacity=".9"/>';
+        }).join("");
+      }).join("");
+      var links = G.links.map(function (pts) { return '<path d="' + toD(pts) + '" fill="none" stroke="' + S.label + '" stroke-width="3" opacity=".8"/>'; }).join("");
+      var inlay = G.inlay ? '<rect x="' + G.inlay.x + '" y="' + G.inlay.y + '" width="' + G.inlay.w + '" height="' + G.inlay.h + '" rx="3" fill="' + S.inlay + '"/>' : "";
+      var frame = S.frame ? '<rect x="0" y="0" width="' + G.W + '" height="' + G.H + '" fill="none" stroke="' + S.frame.color + '" stroke-width="20"/>' : "";
+      var art = '<svg viewBox="0 0 ' + G.W.toFixed(0) + ' ' + G.H.toFixed(0) + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+        '<rect width="' + G.W + '" height="' + G.H + '" fill="' + S.base[1] + '"/>' + inlay + lanes + links + frame + '</svg>';
       return '<label class="style-opt"><input type="radio" name="bstyle" value="' + k + '" id="style-' + k + '">' +
-        '<span class="sw-board" style="background: ' + bg + '; ' + frame + '"></span><span class="st-name">' + S.name + '</span></label>';
+        '<span class="sw-board" style="background: ' + S.base[1] + '">' + art + '</span>' +
+        '<span class="st-name">' + S.name + '<span class="st-shape">' + S.shape + '</span></span></label>';
     }).join("");
     box.querySelectorAll("input").forEach(function (r) {
       r.addEventListener("change", function () { if (r.checked) applyStyle(r.value); });
