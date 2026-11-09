@@ -42,10 +42,6 @@ img { max-width: 100%; }
   --p3: #d39a1e;
   --on-p: #ffffff;
   --on-p3: #1d1608;
-  --wood-hi: #8d5531;
-  --wood-mid: #643519;
-  --wood-lo: #4a2512;
-  --maple: #d8ae76;
   --brass: #dcbb70;
   --font-num: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
   --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
@@ -129,7 +125,7 @@ button { cursor: pointer; }
   justify-self: center;
   border-radius: 14px;
   overflow: hidden;
-  background: var(--wood-lo);
+  background: #4a2512;
   box-shadow: 0 12px 26px rgba(0,0,0,.24), 0 2px 4px rgba(0,0,0,.2);
 }
 .board svg { display: block; width: 100%; height: auto; }
@@ -143,7 +139,9 @@ button { cursor: pointer; }
 .board.won .finish-ring { animation: glow 1.1s ease-in-out infinite alternate; }
 @keyframes glow { from { stroke-opacity: .45; stroke-width: 1; } to { stroke-opacity: 1; stroke-width: 2.6; } }
 .board .peg-inner { transition: transform .3s, opacity .3s; }
-.board .peg.back .peg-inner { transform: scale(.8); opacity: .7; }
+.board .peg .glow { opacity: .4; transition: opacity .3s; }
+.board .peg.back .glow { opacity: 0; }
+.board .peg.back .peg-inner { transform: scale(.74); opacity: .78; }
 .board .pop {
   font-family: var(--font-num); font-weight: 700; font-size: 10px;
   fill: #fff4dc; stroke: rgba(28, 12, 4, .85); stroke-width: 2.2; paint-order: stroke;
@@ -482,6 +480,32 @@ dialog h3 {
   box-shadow: 0 8px 24px rgba(0,0,0,.25); z-index: 20;
 }
 
+/* Tabs */
+.tabs {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px;
+  background: color-mix(in srgb, var(--ink) 7%, var(--bg));
+}
+.tab {
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px;
+  border-radius: 9px; text-decoration: none; color: var(--muted); font-weight: 700;
+}
+.tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.tab .count {
+  font-family: var(--font-num); font-weight: 600; font-size: .85rem; padding: 0 7px; border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 9%, transparent); font-variant-numeric: tabular-nums;
+}
+.tab .count:empty { display: none; }
+.view { display: grid; gap: 14px; min-width: 0; }
+
+/* Board style picker */
+.styles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.style-opt { position: relative; display: grid; gap: 4px; cursor: pointer; font-size: .8rem; color: var(--muted); text-align: center; line-height: 1.15; }
+.style-opt input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.style-opt .sw-board { display: block; height: 48px; border-radius: 8px; border: 2px solid transparent; }
+.style-opt input:checked + .sw-board { border-color: var(--accent); outline: 2px solid var(--accent); }
+.style-opt input:checked ~ .st-name { color: var(--ink); font-weight: 700; }
+.style-opt input:focus-visible + .sw-board { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+
 @media (prefers-reduced-motion: reduce) {
   .progress i, .board .peg-inner { transition: none; }
   .score.bump, .board.won .finish-ring { animation: none; }
@@ -498,6 +522,12 @@ dialog h3 {
     </div>
   </header>
 
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <a role="tab" href="#game" id="tabGame" class="tab" aria-controls="viewGame" aria-selected="true">Game</a>
+    <a role="tab" href="#history" id="tabHistory" class="tab" aria-controls="viewHistory" aria-selected="false">History <span class="count" id="histCount"></span></a>
+  </nav>
+
+  <div class="view" id="viewGame" role="tabpanel" aria-labelledby="tabGame">
   <section class="board" id="boardWrap" aria-label="Cribbage board">
     <svg id="board" role="img" aria-label="Peg positions"></svg>
     <div class="win" id="win" hidden>
@@ -536,6 +566,9 @@ dialog h3 {
     <ol id="log"></ol>
   </section>
 
+  </div>
+
+  <div class="view" id="viewHistory" role="tabpanel" aria-labelledby="tabHistory" hidden>
   <section class="panel" aria-labelledby="histTitle">
     <div class="hist-head">
       <h2 id="histTitle">Player history</h2>
@@ -543,6 +576,7 @@ dialog h3 {
     </div>
     <div id="histBody"></div>
   </section>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status" hidden></div>
@@ -573,6 +607,10 @@ dialog h3 {
       <div class="field" id="field3"><label for="name3" id="lab3">Yellow peg</label><input type="text" id="name3" maxlength="20" autocomplete="off"></div>
     </div>
     <p class="hint" style="margin: -4px 0 4px">History is kept by name, so use the same names each time.</p>
+
+    <h3>Board style</h3>
+    <div class="styles" id="styleOpts" role="radiogroup" aria-label="Board style"></div>
+    <p class="hint" style="margin-top: 8px">Saved on this device. Other phones at a live table keep their own style.</p>
 
     <h3>Counting</h3>
     <label class="check"><input type="checkbox" id="guided">
@@ -753,76 +791,133 @@ dialog h3 {
     club: "M0-4.3A1.75 1.75 0 1 1 0-0.8 1.75 1.75 0 1 1 0-4.3ZM-2-1.6A1.75 1.75 0 1 1-2 1.9 1.75 1.75 0 1 1-2-1.6ZM2-1.6A1.75 1.75 0 1 1 2 1.9 1.75 1.75 0 1 1 2-1.6ZM-0.5 0.6-1.1 4.2H1.1L0.5 0.6Z"
   };
 
-  function buildDefs() {
+  // ---------- Board styles (a per-device preference) ----------
+  var SKEY = "cribbage-style-v1";
+  var BRASS = ["#fbe7b0", "#c9973f", "#7a5520"];
+  var STYLES = {
+    walnut: { name: "Walnut", base: ["#8d5531", "#643519", "#4a2512"], grain: "wood", gd: 0.55, gl: 0.14,
+      label: "#dcbb70", metal: BRASS, slot: "#5a3d15", inlay: "#d8ae76", inlayGrain: true, inlayText: "#5b3215",
+      suitDark: "#21130a", suitRed: "#a3301f", hole: ["#050201", "#170b04", "#3a210f"], rim: "rgba(255,222,176,.17)",
+      lane: 0.26, edge: "rgba(0,0,0,.38)", edgeHi: "rgba(255,226,180,.13)" },
+    maple: { name: "Maple", base: ["#ecd0a4", "#dcb782", "#c99f69"], grain: "wood", gd: 0.3, gl: 0.22,
+      label: "#6b4318", metal: BRASS, slot: "#5a3d15", inlay: "#5a3319", inlayGrain: false, inlayText: "#f0dcb8",
+      suitDark: "#f4e6cc", suitRed: "#ef8a74", hole: ["#050201", "#1b0e05", "#4a2c14"], rim: "rgba(255,255,255,.4)",
+      lane: 0.34, edge: "rgba(80,45,15,.45)", edgeHi: "rgba(255,255,255,.35)" },
+    ebony: { name: "Ebony", base: ["#3a302b", "#221c19", "#141110"], grain: "wood", gd: 0.5, gl: 0.07,
+      label: "#d9b45f", metal: BRASS, slot: "#5a3d15", inlay: "#c9a04a", inlayGrain: false, inlayText: "#2a1c08",
+      suitDark: "#1a120a", suitRed: "#7a1d12", hole: ["#000000", "#060504", "#2a2420"], rim: "rgba(255,230,190,.10)",
+      ring: "rgba(217,180,95,.45)", lane: 0.4, edge: "rgba(0,0,0,.5)", edgeHi: "rgba(217,180,95,.25)" },
+    felt: { name: "Card table", base: ["#2f7d51", "#246841", "#1a5133"], grain: "felt", gd: 0.35, gl: 0.08,
+      label: "#f1d98f", metal: BRASS, slot: "#5a3d15", inlay: "#f1e9d6", inlayGrain: false, inlayText: "#1f3b2b",
+      suitDark: "#1b1b1b", suitRed: "#b3261e", hole: ["#03100a", "#0a2116", "#1f4a32"], rim: "rgba(255,255,255,.13)",
+      lane: 0.34, frame: { color: "#4a2c17", width: 7 } },
+    slate: { name: "Slate", base: ["#434b53", "#343b42", "#2a3036"], grain: "none", gd: 0, gl: 0,
+      label: "#cfd6dc", metal: ["#ffffff", "#aab3bb", "#5d666f"], slot: "#3a4148", inlay: "#525c66", inlayGrain: false,
+      inlayText: "#e9eef2", suitDark: "#e9eef2", suitRed: "#ff8a80", hole: ["#08090b", "#121518", "#3b434a"],
+      rim: "rgba(255,255,255,.10)", ring: "rgba(255,255,255,.14)", lane: 0.36, edge: "rgba(0,0,0,.35)", edgeHi: "rgba(255,255,255,.08)" }
+  };
+  var STYLE_ORDER = ["walnut", "maple", "ebony", "felt", "slate"];
+  function loadStyle() {
+    try { var k = localStorage.getItem(SKEY); return STYLES[k] ? k : "walnut"; } catch (e) { return "walnut"; }
+  }
+  function saveStyle() { try { localStorage.setItem(SKEY, boardStyle); } catch (e) {} }
+  var boardStyle = loadStyle();
+  function curStyle() { return STYLES[boardStyle] || STYLES.walnut; }
+  function applyStyle(k) {
+    if (!STYLES[k]) return;
+    boardStyle = k;
+    buildBoard();
+    placePegs(false);
+  }
+
+  function buildDefs(S) {
     var defs = el("defs", {}, svg);
     var wood = el("linearGradient", { id: "woodBase", x1: 0, y1: 0, x2: 0.15, y2: 1 }, defs);
-    stop(wood, 0, "var(--wood-hi)");
-    stop(wood, 0.55, "var(--wood-mid)");
-    stop(wood, 1, "var(--wood-lo)");
+    stop(wood, 0, S.base[0]);
+    stop(wood, 0.55, S.base[1]);
+    stop(wood, 1, S.base[2]);
     var g1 = el("filter", { id: "grainDark", x: 0, y: 0, width: 1, height: 1 }, defs);
-    el("feTurbulence", { type: "fractalNoise", baseFrequency: "0.005 0.19", numOctaves: 4, seed: 11 }, g1);
-    el("feColorMatrix", { type: "matrix", values: "0 0 0 0 0.12  0 0 0 0 0.05  0 0 0 0 0.02  2.6 0 0 0 -1.05" }, g1);
     var g2 = el("filter", { id: "grainLight", x: 0, y: 0, width: 1, height: 1 }, defs);
-    el("feTurbulence", { type: "fractalNoise", baseFrequency: "0.004 0.12", numOctaves: 3, seed: 4 }, g2);
-    el("feColorMatrix", { type: "matrix", values: "0 0 0 0 1  0 0 0 0 0.8  0 0 0 0 0.55  -2.4 0 0 0 1.05" }, g2);
+    if (S.grain === "felt") {
+      el("feTurbulence", { type: "fractalNoise", baseFrequency: "0.85", numOctaves: 2, seed: 7 }, g1);
+      el("feColorMatrix", { type: "matrix", values: "0 0 0 0 0  0 0 0 0 0.05  0 0 0 0 0.02  1.4 0 0 0 -0.55" }, g1);
+      el("feTurbulence", { type: "fractalNoise", baseFrequency: "0.6", numOctaves: 2, seed: 2 }, g2);
+      el("feColorMatrix", { type: "matrix", values: "0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  -1.4 0 0 0 0.6" }, g2);
+    } else {
+      el("feTurbulence", { type: "fractalNoise", baseFrequency: "0.005 0.19", numOctaves: 4, seed: 11 }, g1);
+      el("feColorMatrix", { type: "matrix", values: "0 0 0 0 0.12  0 0 0 0 0.05  0 0 0 0 0.02  2.6 0 0 0 -1.05" }, g1);
+      el("feTurbulence", { type: "fractalNoise", baseFrequency: "0.004 0.12", numOctaves: 3, seed: 4 }, g2);
+      el("feColorMatrix", { type: "matrix", values: "0 0 0 0 1  0 0 0 0 0.8  0 0 0 0 0.55  -2.4 0 0 0 1.05" }, g2);
+    }
     var g3 = el("filter", { id: "grainMaple", x: 0, y: 0, width: 1, height: 1 }, defs);
     el("feTurbulence", { type: "fractalNoise", baseFrequency: "0.01 0.5", numOctaves: 2, seed: 3 }, g3);
     el("feColorMatrix", { type: "matrix", values: "0 0 0 0 0.45  0 0 0 0 0.27  0 0 0 0 0.1  2 0 0 0 -0.85" }, g3);
     var hole = el("radialGradient", { id: "holeGrad", cx: 0.5, cy: 0.5, r: 0.5, fx: 0.5, fy: 0.3 }, defs);
-    stop(hole, 0, "#050201");
-    stop(hole, 0.7, "#170b04");
-    stop(hole, 1, "#3a210f");
+    stop(hole, 0, S.hole[0]);
+    stop(hole, 0.7, S.hole[1]);
+    stop(hole, 1, S.hole[2]);
     var brass = el("radialGradient", { id: "brassGrad", cx: 0.4, cy: 0.35, r: 0.7 }, defs);
-    stop(brass, 0, "#fbe7b0");
-    stop(brass, 0.5, "#c9973f");
-    stop(brass, 1, "#7a5520");
+    stop(brass, 0, S.metal[0]);
+    stop(brass, 0.5, S.metal[1]);
+    stop(brass, 1, S.metal[2]);
     for (var p = 0; p < MAXP; p++) {
       var pg = el("radialGradient", { id: "peg" + p, cx: 0.38, cy: 0.32, r: 0.75 }, defs);
-      stop(pg, 0, "color-mix(in srgb, " + COLORS[p] + " 40%, white)");
+      stop(pg, 0, "color-mix(in srgb, " + COLORS[p] + " 45%, white)");
       stop(pg, 0.45, COLORS[p]);
-      stop(pg, 1, "color-mix(in srgb, " + COLORS[p] + " 55%, black)");
+      stop(pg, 1, "color-mix(in srgb, " + COLORS[p] + " 60%, black)");
     }
     var sh = el("filter", { id: "pegShadow", x: -0.6, y: -0.6, width: 2.2, height: 2.4 }, defs);
-    el("feDropShadow", { dx: 0.7, dy: 1.4, stdDeviation: 0.8, "flood-color": "#120700", "flood-opacity": 0.6 }, sh);
+    el("feDropShadow", { dx: 0.8, dy: 1.6, stdDeviation: 0.9, "flood-color": "#000", "flood-opacity": 0.6 }, sh);
     Object.keys(SUITS).forEach(function (k) { el("path", { id: "suit-" + k, d: SUITS[k] }, defs); });
   }
 
   function buildBoard() {
+    var S = curStyle();
     var P = nSides();
     var H = yRow(3, P - 1) + BOT;
     svg.setAttribute("viewBox", "0 0 " + W + " " + H);
     // Keep the whole board under about two thirds of the window height so the scoring cards stay in view
     boardWrap.style.maxWidth = "calc(" + (W / H).toFixed(3) + " * 66vh)";
+    boardWrap.style.setProperty("--brass", S.label);
+    boardWrap.style.background = S.base[2];
     while (svg.firstChild) svg.removeChild(svg.firstChild);
-    buildDefs();
+    buildDefs(S);
 
     el("rect", { x: 0, y: 0, width: W, height: H, fill: "url(#woodBase)" }, svg);
-    el("rect", { x: 0, y: 0, width: W, height: H, filter: "url(#grainDark)", opacity: 0.55 }, svg);
-    el("rect", { x: 0, y: 0, width: W, height: H, filter: "url(#grainLight)", opacity: 0.14 }, svg);
-    el("rect", { x: 3.5, y: 3.5, width: W - 7, height: H - 7, rx: 8, fill: "none", stroke: "rgba(0,0,0,.38)", "stroke-width": 1.3 }, svg);
-    el("rect", { x: 4.6, y: 4.6, width: W - 9.2, height: H - 9.2, rx: 7, fill: "none", stroke: "rgba(255,226,180,.13)", "stroke-width": 0.8 }, svg);
+    if (S.grain !== "none") {
+      el("rect", { x: 0, y: 0, width: W, height: H, filter: "url(#grainDark)", opacity: S.gd }, svg);
+      el("rect", { x: 0, y: 0, width: W, height: H, filter: "url(#grainLight)", opacity: S.gl }, svg);
+    }
+    if (S.frame) {
+      var fw = S.frame.width;
+      el("rect", { x: fw / 2, y: fw / 2, width: W - fw, height: H - fw, rx: 10, fill: "none", stroke: S.frame.color, "stroke-width": fw }, svg);
+      el("rect", { x: fw, y: fw, width: W - 2 * fw, height: H - 2 * fw, rx: 6, fill: "none", stroke: "rgba(0,0,0,.4)", "stroke-width": 1 }, svg);
+    } else {
+      el("rect", { x: 3.5, y: 3.5, width: W - 7, height: H - 7, rx: 8, fill: "none", stroke: S.edge, "stroke-width": 1.3 }, svg);
+      el("rect", { x: 4.6, y: 4.6, width: W - 9.2, height: H - 9.2, rx: 7, fill: "none", stroke: S.edgeHi, "stroke-width": 0.8 }, svg);
+    }
 
     [[10, 10, 30], [W - 10, 10, 70], [10, H - 10, 120], [W - 10, H - 10, 160]].forEach(function (s) {
       el("circle", { cx: s[0], cy: s[1] + 0.5, r: 3.4, fill: "rgba(0,0,0,.35)" }, svg);
       el("circle", { cx: s[0], cy: s[1], r: 3.2, fill: "url(#brassGrad)" }, svg);
-      el("line", { x1: -2.2, x2: 2.2, y1: 0, y2: 0, stroke: "#5a3d15", "stroke-width": 0.8,
+      el("line", { x1: -2.2, x2: 2.2, y1: 0, y2: 0, stroke: S.slot, "stroke-width": 0.8,
         transform: "translate(" + s[0] + " " + s[1] + ") rotate(" + s[2] + ")" }, svg);
     });
 
     var midY = (yRow(1, P - 1) + yRow(2, 0)) / 2;
     var bx = X0 - 3, bw = ROWW + 6, bh = 16;
-    el("rect", { x: bx, y: midY - bh / 2, width: bw, height: bh, rx: 3, fill: "var(--maple)" }, svg);
-    el("rect", { x: bx, y: midY - bh / 2, width: bw, height: bh, rx: 3, filter: "url(#grainMaple)", opacity: 0.5 }, svg);
+    el("rect", { x: bx, y: midY - bh / 2, width: bw, height: bh, rx: 3, fill: S.inlay }, svg);
+    if (S.inlayGrain) el("rect", { x: bx, y: midY - bh / 2, width: bw, height: bh, rx: 3, filter: "url(#grainMaple)", opacity: 0.5 }, svg);
     el("rect", { x: bx, y: midY - bh / 2, width: bw, height: bh, rx: 3, fill: "none", stroke: "url(#brassGrad)", "stroke-width": 1.1 }, svg);
     var cx = X0 + ROWW / 2;
-    var engr = text("CRIBBAGE", { "class": "engrave", x: cx, y: midY + 0.4, fill: "#5b3215" }, svg);
-    engr.setAttribute("fill-opacity", "0.85");
+    var engr = text("CRIBBAGE", { "class": "engrave", x: cx, y: midY + 0.4, fill: S.inlayText }, svg);
+    engr.setAttribute("fill-opacity", "0.9");
     var order = ["spade", "heart", "club", "diamond"];
     for (var i = 0; i < 4; i++) {
       [-1, 1].forEach(function (dir) {
         var name = dir < 0 ? order[3 - i] : order[i];
         var red = name === "heart" || name === "diamond";
-        el("use", { href: "#suit-" + name, x: cx + dir * (56 + i * 30), y: midY, fill: red ? "#a3301f" : "#21130a" }, svg);
+        el("use", { href: "#suit-" + name, x: cx + dir * (56 + i * 30), y: midY, fill: red ? S.suitRed : S.suitDark }, svg);
       });
     }
 
@@ -830,6 +925,7 @@ dialog h3 {
     for (k = 0; k < 4; k++) for (p = 0; p < P; p++) {
       var ln = el("line", { "class": "lane", x1: X0 - 3, x2: X0 + ROWW + 3, y1: yRow(k, p), y2: yRow(k, p) }, svg);
       ln.style.stroke = COLORS[p];
+      ln.style.opacity = S.lane;
     }
     for (k = 0; k < 3; k++) {
       var y1 = streetMid(k), y2 = streetMid(k + 1), ry = (y2 - y1) / 2;
@@ -852,8 +948,9 @@ dialog h3 {
     }
 
     function drill(cx, cy, r) {
-      el("circle", { cx: cx, cy: cy + 0.55, r: r + 0.2, fill: "rgba(255,222,176,.17)" }, svg);
-      el("circle", { cx: cx, cy: cy, r: r, fill: "url(#holeGrad)" }, svg);
+      el("circle", { cx: cx, cy: cy + 0.55, r: r + 0.2, fill: S.rim }, svg);
+      var h = el("circle", { cx: cx, cy: cy, r: r, fill: "url(#holeGrad)" }, svg);
+      if (S.ring) { h.setAttribute("stroke", S.ring); h.setAttribute("stroke-width", 0.6); }
     }
     for (k = 0; k < 4; k++) for (p = 0; p < P; p++) for (c = 0; c < 30; c++) drill(holeX(c), yRow(k, p), 2.5);
     for (p = 0; p < P; p++) { drill(X0 - 14, yRow(0, p), 2.5); drill(X0 - 24, yRow(0, p), 2.5); }
@@ -867,15 +964,21 @@ dialog h3 {
     drill(f[0], f[1], 3.4);
     text("121", { "class": "lbl", "text-anchor": "middle", x: f[0], y: f[1] + 16 }, svg);
 
+    // Pegs: two per side. A soft glow in the side's colour, a dark outline and a white rim keep them readable on every board.
     pegEls = [];
     var pegLayer = el("g", {}, svg);
     for (p = 0; p < P; p++) {
       var pair = [];
       for (var ei = 0; ei < 2; ei++) {
         var g = el("g", { "class": "peg" }, pegLayer);
-        var inner = el("g", { "class": "peg-inner", filter: "url(#pegShadow)" }, g);
-        el("circle", { r: 4.7, fill: "url(#peg" + p + ")", stroke: "rgba(0,0,0,.45)", "stroke-width": 0.6 }, inner);
-        el("circle", { r: 1.1, cx: -1.6, cy: -1.8, fill: "#fff", "fill-opacity": 0.7 }, inner);
+        var inner = el("g", { "class": "peg-inner" }, g);
+        var glow = el("circle", { "class": "glow", r: 8.6 }, inner);
+        glow.style.fill = COLORS[p];
+        var body = el("g", { filter: "url(#pegShadow)" }, inner);
+        el("circle", { r: 6.1, fill: "rgba(0,0,0,.6)" }, body);
+        el("circle", { r: 5.4, fill: "#fff" }, body);
+        el("circle", { r: 4.5, fill: "url(#peg" + p + ")" }, body);
+        el("circle", { r: 1.2, cx: -1.5, cy: -1.7, fill: "#fff", "fill-opacity": 0.75 }, body);
         var sd = state.sides[p];
         pair.push({ g: g, s: ei === 0 ? sd.score : sd.back, role: ei === 0 ? "front" : "back", ei: ei, x: null, y: null });
       }
@@ -1660,6 +1763,7 @@ dialog h3 {
 
   function renderHistory() {
     var root = document.getElementById("histBody");
+    document.getElementById("histCount").textContent = games.length ? String(games.length) : "";
     if (!games.length) {
       root.innerHTML = '<p class="empty">Finished games show up here, with each player\'s wins, average hand and crib, pegging and skunks. Play a game to 121 to log the first one.</p>';
       return;
@@ -1851,6 +1955,9 @@ dialog h3 {
     for (var c = 2; c <= MAXP; c++) document.getElementById("count" + c).checked = state.mode === "solo" && state.count === c;
     for (var i = 0; i < MAXP; i++) document.getElementById("name" + i).value = state.names[i] || DEFAULT_NAMES[i];
     document.getElementById("guided").checked = !!state.guided;
+    styleAtOpen = boardStyle;
+    var sr = document.getElementById("style-" + boardStyle);
+    if (sr) sr.checked = true;
     document.getElementById("liveOn").checked = livePref.on;
     document.getElementById("liveTable").value = livePref.table;
     getDb().then(function (d) {
@@ -1862,8 +1969,31 @@ dialog h3 {
     try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
   }
   function closeSetup() { try { dlg.close(); } catch (e) { dlg.removeAttribute("open"); } }
+  var styleAtOpen = boardStyle;
+  function revertStyle() { if (boardStyle !== styleAtOpen) applyStyle(styleAtOpen); }
+  function buildStyleOpts() {
+    var box = document.getElementById("styleOpts");
+    box.innerHTML = STYLE_ORDER.map(function (k) {
+      var S = STYLES[k];
+      var dots = function (y) { return "radial-gradient(circle, " + S.hole[0] + " 0 1.4px, transparent 1.9px) 2px " + y + "px / 8px 8px repeat-x"; };
+      var peg = function (c, x, y) {
+        return "radial-gradient(circle, " + c + " 0 2.2px, #fff 2.3px 2.9px, rgba(0,0,0,.55) 3px 3.4px, transparent 3.6px) " + x + "px " + y + "px / 8px 8px no-repeat";
+      };
+      var bg = [peg("var(--p0)", 26, 1), peg("var(--p1)", 42, 9), dots(1), dots(9),
+        "linear-gradient(" + S.inlay + ", " + S.inlay + ") 4px 19px / calc(100% - 8px) 6px no-repeat",
+        dots(29), dots(37), "linear-gradient(170deg, " + S.base[0] + ", " + S.base[1] + " 55%, " + S.base[2] + ")"].join(", ");
+      var frame = S.frame ? "box-shadow: inset 0 0 0 3px " + S.frame.color + ";" : "box-shadow: 0 1px 3px rgba(0,0,0,.25);";
+      return '<label class="style-opt"><input type="radio" name="bstyle" value="' + k + '" id="style-' + k + '">' +
+        '<span class="sw-board" style="background: ' + bg + '; ' + frame + '"></span><span class="st-name">' + S.name + '</span></label>';
+    }).join("");
+    box.querySelectorAll("input").forEach(function (r) {
+      r.addEventListener("change", function () { if (r.checked) applyStyle(r.value); });
+    });
+  }
+  buildStyleOpts();
   document.getElementById("openSetup").addEventListener("click", openSetup);
-  document.getElementById("cancelSetup").addEventListener("click", closeSetup);
+  document.getElementById("cancelSetup").addEventListener("click", function () { revertStyle(); closeSetup(); });
+  dlg.addEventListener("cancel", revertStyle);
   document.querySelectorAll('input[name="count"], input[name="mode"], #liveOn').forEach(function (r) { r.addEventListener("change", syncSetup); });
 
   var resetBtn = document.getElementById("resetMatch");
@@ -1887,6 +2017,8 @@ dialog h3 {
 
   document.getElementById("setupForm").addEventListener("submit", function (e) {
     e.preventDefault();
+    saveStyle();
+    styleAtOpen = boardStyle;
     var names = [];
     for (var i = 0; i < MAXP; i++) names.push(document.getElementById("name" + i).value.trim() || DEFAULT_NAMES[i]);
     var mode = chosenMode(), n = chosenCount(), guided = document.getElementById("guided").checked;
@@ -1926,6 +2058,20 @@ dialog h3 {
   }
   document.addEventListener("pointerdown", keepAwake);
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible" && state.moves.length) keepAwake(); });
+
+  // ---------- Tabs: #game and #history ----------
+  var VIEWS = { game: ["viewGame", "tabGame"], history: ["viewHistory", "tabHistory"] };
+  function showView(scroll) {
+    var v = (location.hash || "").replace("#", "");
+    if (!VIEWS[v]) v = "game";
+    Object.keys(VIEWS).forEach(function (k) {
+      document.getElementById(VIEWS[k][0]).hidden = k !== v;
+      document.getElementById(VIEWS[k][1]).setAttribute("aria-selected", k === v ? "true" : "false");
+    });
+    if (scroll) window.scrollTo(0, 0);
+  }
+  window.addEventListener("hashchange", function () { showView(true); });
+  showView(false);
 
   // ---------- Boot ----------
   function start(data) {
