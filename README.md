@@ -12,12 +12,12 @@ A cribbage pegging board for your phone. Tap to score, and the pegs leapfrog alo
 - **Guided counting.** Each hand goes pegging, then each hand in order from the dealer's left, then the crib. The deal passes on its own, and the game ends the moment someone reaches 121.
 - **Undo** for every step, including a win.
 - **Skunk and double-skunk detection**, a match tally, and the loser deals first in the next game.
-- **Easy-to-read board**: large hole numbers, and a tag in each player's colour showing their score beside their lead peg.
+- **Easy-to-read board**: large hole numbers, lanes painted in each player's colour, arrows at every turn, skunk lines spelled out, and a tag in each player's colour showing their score beside their lead peg.
 - **Five board designs**, each with its own track shape. Pick one in Settings:
   - **Walnut, Classic:** four straight streets that run back and forth.
-  - **Maple, Racetrack:** one long lap around an oval.
-  - **Ebony, Spiral:** winds inward and finishes in the centre.
-  - **Card table, Columns:** six up-and-down columns on green felt.
+  - **Maple, Racetrack:** one lap around a rounded oval, starting and finishing together on the top straight.
+  - **Ebony, Spiral:** winds inward to a brass medallion in the centre.
+  - **Card table, Columns:** six up-and-down columns on green felt with gold stitching.
   - **Slate, Wave:** three long wavy streets.
 - **Game recap chart** at the end of each game, with points from pegging, hands and crib.
 - **History tab**: wins, win %, average hand, average crib, pegging per game, best hand, skunks, and every past game with its chart.
