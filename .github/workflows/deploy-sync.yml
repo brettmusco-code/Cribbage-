@@ -15,7 +15,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check for Cloudflare secrets
         id: check
@@ -43,3 +43,13 @@ jobs:
       - name: Show the server address
         if: steps.check.outputs.ready == 'true'
         run: echo "::notice::Sync server is live at ${{ steps.deploy.outputs.deployment-url }}. Put this address in the cribbage-sync meta tag in index.html."
+
+      - uses: actions/setup-node@v5
+        if: steps.check.outputs.ready == 'true'
+        with:
+          node-version: 22
+
+      # Health, live updates between two connections, and saving and deleting a game
+      - name: Check the live server
+        if: steps.check.outputs.ready == 'true'
+        run: node server/smoke-test.mjs "${{ steps.deploy.outputs.deployment-url }}"

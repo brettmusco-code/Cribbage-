@@ -45,6 +45,8 @@ The site is live a minute or two later.
 
 With the sync server running, everyone at a table can score from their own phone, and finished games are shared with the table.
 
+This copy of the app uses the server at `https://cribbage-sync.brettmusco.workers.dev`.
+
 In the app, open **Settings → Live sync**, turn on **Share this game live**, and give your group a table name. Everyone who enters the same name joins the same game and history, so pick a name only your group knows. Live sync is off until you turn it on, and each phone starts with a random table name.
 
 Without the server, the app still works fully on one phone: the game and history are saved on that phone.
@@ -62,7 +64,7 @@ The server is a small Cloudflare Worker in [`server/`](server/). It runs on Clou
    <meta name="cribbage-sync" content="https://cribbage-sync.<your-name>.workers.dev">
    ```
 
-After that, any change under `server/` pushed to `main` redeploys automatically.
+After that, any change under `server/` pushed to `main` redeploys automatically. Each deploy ends with a check (`server/smoke-test.mjs`) that the server answers, passes live updates between two connections, and saves and deletes a game.
 
 To run the server on your own computer: `cd server && npm install && npm run dev`, then set the meta tag to `http://127.0.0.1:8787`.
 
