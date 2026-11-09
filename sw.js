@@ -1,5 +1,5 @@
 // Offline cache for the cribbage board. Bump CACHE when the app shell changes.
-const CACHE = "cribbage-v9";
+const CACHE = "cribbage-v10";
 const SHELL = [
   "./",
   "./index.html",
@@ -7,7 +7,8 @@ const SHELL = [
   "./icons/icon.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
-  "./icons/apple-touch-icon.png"
+  "./icons/apple-touch-icon.png",
+  "./icons/favicon-32.png"
 ];
 
 self.addEventListener("install", (event) => {
