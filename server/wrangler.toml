@@ -1,5 +1,6 @@
 # Cribbage sync server: one Durable Object per table holds the live game and
-# that table's finished games. Runs on the Workers Free plan.
+# that table's finished games, and a single Lobby object lists open tables.
+# Runs on the Workers Free plan.
 name = "cribbage-sync"
 main = "src/index.js"
 compatibility_date = "2025-09-01"
@@ -8,6 +9,14 @@ compatibility_date = "2025-09-01"
 name = "TABLES"
 class_name = "Table"
 
+[[durable_objects.bindings]]
+name = "LOBBY"
+class_name = "Lobby"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Table"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Lobby"]

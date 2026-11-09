@@ -22,7 +22,7 @@ A cribbage pegging board for your phone. Tap to score, and the pegs leapfrog alo
 - **Game recap chart** at the end of each game, with points from pegging, hands and crib.
 - **History tab**: wins, win %, average hand, average crib, pegging per game, best hand, skunks, and every past game with its chart.
 - **Share screen** with a QR code and install steps, so anyone at the table can get the app in seconds.
-- **Live sync** so each player can score from their own phone (needs the free sync server below).
+- **Play live**: find an open table or start one, and each player scores from their own phone (needs the free sync server below).
 - **Installs to your home screen** and works offline.
 
 ## Share and install
@@ -42,19 +42,23 @@ Installed, it opens full screen from its own icon, works without signal, and upd
 
 The site is live a minute or two later.
 
-## Live sync between phones
+## Live play between phones
 
-With the sync server running, everyone at a table can score from their own phone, and finished games are shared with the table.
+Tap **Play live** at the top of the app.
 
-This copy of the app uses the server at `https://cribbage-sync.brettmusco.workers.dev`.
+- **Open tables** lists the tables in use, with their players, scores, game number and how many phones are connected. Tap **Join** to sit down at one.
+- **Start or join by name**: type a new name to start a table with your current game, or the name of a hidden table to join it. A name made from the players' names is filled in for you.
+- At a table, everyone sees and scores the same game on their own phone, and finished games are shared with the table.
+- **Show this table in the list** is on for new tables. Turn it off to keep a table private; people can still join by typing its name.
+- If this phone has a game of its own (not at a table), joining asks first, because the table's game replaces it.
 
-In the app, open **Settings → Live sync**, turn on **Share this game live**, and give your group a table name. Everyone who enters the same name joins the same game and history, so pick a name only your group knows. Live sync is off until you turn it on, and each phone starts with a random table name.
+Tables leave the list after a day without changes. This copy of the app uses the server at `https://cribbage-sync.brettmusco.workers.dev`.
 
 Without the server, the app still works fully on one phone: the game and history are saved on that phone.
 
 ### Set up the sync server (one time, free)
 
-The server is a small Cloudflare Worker in [`server/`](server/). It runs on Cloudflare's free plan and keeps each table's game and history in Cloudflare's built-in storage.
+The server is a small Cloudflare Worker in [`server/`](server/). It runs on Cloudflare's free plan and keeps each table's game and history in Cloudflare's built-in storage, plus a small directory of open tables.
 
 1. **Cloudflare API token.** In the Cloudflare dashboard, open **My Profile → API Tokens → Create Token**, choose the **Edit Cloudflare Workers** template, and create it. Copy the token.
 2. **Account ID.** Open **Workers & Pages** in the Cloudflare dashboard. The Account ID is on the right. If you've never used Workers, opening this page once also sets up your `workers.dev` address.
@@ -65,7 +69,7 @@ The server is a small Cloudflare Worker in [`server/`](server/). It runs on Clou
    <meta name="cribbage-sync" content="https://cribbage-sync.<your-name>.workers.dev">
    ```
 
-After that, any change under `server/` pushed to `main` redeploys automatically. Each deploy ends with a check (`server/smoke-test.mjs`) that the server answers, passes live updates between two connections, and saves and deletes a game.
+After that, any change under `server/` pushed to `main` redeploys automatically. Each deploy ends with a check (`server/smoke-test.mjs`) that the server answers, passes live updates between two connections, lists a table and hides it again, and saves and deletes a game.
 
 To run the server on your own computer: `cd server && npm install && npm run dev`, then set the meta tag to `http://127.0.0.1:8787`.
 

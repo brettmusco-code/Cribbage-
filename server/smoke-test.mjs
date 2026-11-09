@@ -1,5 +1,6 @@
 // Checks a deployed sync server end to end: health, live updates between two
-// connections on one table, and saving, listing and deleting a finished game.
+// connections on one table, the table list (listed and hidden), and saving,
+// listing and deleting a finished game. The test table ends up hidden.
 // Usage: node smoke-test.mjs https://cribbage-sync.<name>.workers.dev
 const base = (process.argv[2] || "").replace(/\/+$/, "");
 if (!base) { console.error("Usage: node smoke-test.mjs <server url>"); process.exit(2); }
@@ -31,6 +32,23 @@ a.ws.send(JSON.stringify({ type: "set", doc: { state: { v: 2, smoke: true }, by 
 let got;
 do { got = await withTimeout(b.next(), 10000, "live update"); } while (!(got.type === "state" && got.doc && got.doc.by === by));
 console.log("live update ok (rev " + got.doc.rev + ")");
+
+// Table list: a game shows up while listed, and disappears once hidden
+const game = (listed) => ({ v: 2, mode: "solo", names: ["Smoke", "Test"], sides: [{ score: 3 }, { score: 5 }], game: 1, winner: null, listed });
+async function setAndWait(state) {
+  a.ws.send(JSON.stringify({ type: "set", doc: { state, by } }));
+  let m;
+  do { m = await withTimeout(b.next(), 10000, "live update"); } while (!(m.type === "state" && m.doc && m.doc.by === by && m.doc.state.listed === state.listed));
+}
+const listedTables = async () => (await (await fetch(base + "/tables")).json()).tables;
+await setAndWait(game(true));
+const shown = (await listedTables()).find((t) => t.name === table);
+if (!shown) fail("listed table missing from /tables");
+if (shown.players.join(",") !== "Smoke,Test" || shown.scores.join(",") !== "3,5") fail("table summary wrong: " + JSON.stringify(shown));
+if (shown.devices < 2) fail("expected 2 connected phones, got " + shown.devices);
+await setAndWait(game(false));
+if ((await listedTables()).some((t) => t.name === table)) fail("hidden table still listed");
+console.log("table list ok");
 a.ws.close(); b.ws.close();
 
 const id = "smoke" + Date.now().toString(36);

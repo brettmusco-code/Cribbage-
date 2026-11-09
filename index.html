@@ -91,15 +91,23 @@ button { cursor: pointer; }
   gap: 14px;
 }
 
-.top { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.brand { display: grid; min-width: 0; }
+.brand .game-no { font-size: .82rem; line-height: 1.2; }
 .top h1 {
   margin: 0;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 1.6rem;
+  line-height: 1.1;
   letter-spacing: .02em;
 }
-.top-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.top-right { display: flex; align-items: center; gap: 8px; min-width: 0; justify-content: flex-end; }
+.top-right .live { max-width: 48vw; }
+@media (max-width: 480px) {
+  .share-btn { padding: 0 10px; }
+  .share-btn .lbl { display: none; }
+}
 .game-no {
   font-family: var(--font-num);
   font-weight: 600;
@@ -110,11 +118,13 @@ button { cursor: pointer; }
   font-variant-numeric: tabular-nums;
 }
 .live {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 6px; min-height: 34px; max-width: 100%;
   font-family: var(--font-num); font-weight: 600; font-size: .85rem; letter-spacing: .08em; text-transform: uppercase;
-  padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--surface);
+  padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink); background: var(--surface);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.live i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.live #liveText { overflow: hidden; text-overflow: ellipsis; }
+.live i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
 .live.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .live.on i { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 .live.warn { color: var(--danger); }
@@ -539,6 +549,28 @@ dialog h3 {
 }
 .install p { margin: 0 0 8px; }
 
+/* Live tables */
+.tbl-here {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 12px; border-radius: 12px; background: var(--accent-soft); margin-bottom: 10px;
+}
+.tbl-here > div { display: grid; gap: 1px; min-width: 0; }
+.tbl-here small { color: var(--muted); font-size: .8rem; }
+.tbl-here strong { font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tbl-list { list-style: none; margin: 0; padding: 0; display: grid; max-height: 46vh; overflow-y: auto; }
+.tbl-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.tbl-list li:first-child { border-top: 0; }
+.tbl-list .empty { padding: 4px 0; }
+.tbl-info { display: grid; gap: 2px; min-width: 0; }
+.tbl-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tbl-players { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: .92rem; font-variant-numeric: tabular-nums; }
+.tbl-players span { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.tbl-players b { font-family: var(--font-num); }
+.tbl-meta { color: var(--muted); font-size: .82rem; }
+.tbl-meta .now { color: var(--accent); font-weight: 600; }
+.tbl-join { flex: none; min-height: 38px; padding: 0 14px; }
+.tbl-join.confirm, #tblGo.confirm { background: var(--danger); }
+
 /* Board style picker */
 .styles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .style-opt { position: relative; display: grid; gap: 4px; cursor: pointer; font-size: .8rem; color: var(--muted); text-align: center; line-height: 1.15; }
@@ -559,13 +591,15 @@ dialog h3 {
 <body>
 <div class="app">
   <header class="top">
-    <h1>Cribbage</h1>
-    <div class="top-right">
-      <span class="live" id="liveBadge" hidden><i></i><span id="liveText">Live</span></span>
+    <div class="brand">
+      <h1>Cribbage</h1>
       <span class="game-no" id="gameNo">Game 1</span>
+    </div>
+    <div class="top-right">
+      <button type="button" class="live" id="liveBadge" hidden aria-haspopup="dialog"><i></i><span id="liveText">Play live</span></button>
       <button type="button" class="share-btn" id="openShare" aria-label="Share or install the app">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 10V2"/><path d="M5 5l3-3 3 3"/><path d="M3 8v5a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8"/></svg>
-        Share
+        <span class="lbl">Share</span>
       </button>
     </div>
   </header>
@@ -664,15 +698,11 @@ dialog h3 {
       <span>Guide each hand<small>Pegging first, then each hand in order from the dealer's left, then the crib. The deal passes on its own.</small></span>
     </label>
 
-    <h3>Live sync</h3>
-    <label class="check"><input type="checkbox" id="liveOn">
-      <span>Share this game live<small>Every phone at the same table sees and scores the same game. Joining a table that already has a game shows that game.</small></span>
-    </label>
-    <div class="field" id="tableField">
-      <label for="liveTable">Table name</label>
-      <input type="text" id="liveTable" maxlength="24" autocomplete="off" placeholder="main">
+    <div id="liveSection" hidden>
+      <h3>Live play</h3>
+      <p class="hint" style="margin: 0 0 10px">Score on separate phones at the same table, or find a table to join.</p>
+      <button type="button" class="btn-ghost" id="setupTables">Open live play</button>
     </div>
-    <p class="hint" id="liveNote"></p>
 
     <p class="note" id="setupNote"></p>
     <div class="dlg-actions">
@@ -695,6 +725,22 @@ dialog h3 {
   <h3>Install on this phone</h3>
   <div class="install" id="installBody"></div>
   <div class="dlg-actions"><button type="button" class="btn-solid" id="shareClose">Done</button></div>
+</dialog>
+
+<dialog id="tablesDlg" aria-labelledby="tablesTitle">
+  <h2 id="tablesTitle">Play live</h2>
+  <p class="hint" style="margin: -4px 0 12px">Everyone at a table sees and scores the same game on their own phone.</p>
+  <div id="tblHere"></div>
+  <h3>Open tables</h3>
+  <ul class="tbl-list" id="tblList" aria-live="polite"></ul>
+  <h3>Start or join by name</h3>
+  <form class="linkrow" id="tblNew" novalidate>
+    <label class="sr" for="tblName">Table name</label>
+    <input id="tblName" type="text" maxlength="24" autocomplete="off" autocapitalize="none" spellcheck="false">
+    <button type="submit" class="btn-solid" id="tblGo">Go</button>
+  </form>
+  <p class="hint" id="tblNewHint" style="margin-top: 6px">A new name starts a table and brings your current game. The name of a hidden table joins it.</p>
+  <div class="dlg-actions"><button type="button" class="btn-solid" id="tblClose" autofocus>Done</button></div>
 </dialog>
 
 <dialog id="gameDlg" class="wide" aria-labelledby="gdTitle">
@@ -2069,7 +2115,34 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         }, onErr);
       },
       putGame: function (t, g) { return d.collection("games").doc(g.id).set(g); },
-      delGame: function (t, id) { return d.collection("games").doc(id).delete(); }
+      delGame: function (t, id) { return d.collection("games").doc(id).delete(); },
+      peekTable: function (name) {
+        return d.collection("tables").doc(name).get().then(function (snap) { return snap.exists ? snap.data() : null; });
+      },
+      listTables: function (onList, onErr) {
+        return d.collection("tables").orderBy("updatedAt", "desc").limit(40).onSnapshot(function (snap) {
+          var now = Date.now();
+          onList(snap.docs.map(function (doc) { return summarizeTable(doc.id, doc.data(), null); })
+            .filter(function (t) { return t && t.listed && now - t.updatedAt < TABLE_LISTED_FOR; }));
+        }, onErr);
+      }
+    };
+  }
+
+  // What the table list shows for one table (the sync server works these out the same way)
+  var TABLE_LISTED_FOR = 24 * 60 * 60 * 1000;
+  function summarizeTable(name, doc, devices) {
+    var st = doc && doc.state;
+    if (!st || !Array.isArray(st.sides) || !st.sides.length) return null;
+    var nm = Array.isArray(st.names) ? st.names : [];
+    var nameOf = function (p) { return String(nm[p] || "Player " + (p + 1)).slice(0, 20); };
+    var players = st.mode === "partners" ? [nameOf(0) + " & " + nameOf(2), nameOf(1) + " & " + nameOf(3)]
+      : st.sides.map(function (sd, i) { return nameOf(i); });
+    return {
+      name: name, players: players.slice(0, 4),
+      scores: st.sides.slice(0, 4).map(function (sd) { return Math.max(0, Math.min(121, Number(sd && sd.score) || 0)); }),
+      game: Number(st.game) || 1, over: st.winner !== null && st.winner !== undefined,
+      listed: st.listed !== false, devices: devices, updatedAt: Number(doc.updatedAt) || 0
     };
   }
 
@@ -2155,7 +2228,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       putGame: function (t, g) {
         return api(T(t) + "/games/" + encodeURIComponent(g.id), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(g) });
       },
-      delGame: function (t, id) { return api(T(t) + "/games/" + encodeURIComponent(id), { method: "DELETE" }); }
+      delGame: function (t, id) { return api(T(t) + "/games/" + encodeURIComponent(id), { method: "DELETE" }); },
+      peekTable: function (name) { return api(T(name) + "/state").then(function (j) { return j.doc || null; }); },
+      // The server keeps the list; refresh it every few seconds while it's on screen
+      listTables: function (onList, onErr) {
+        var alive = true, timer = null;
+        var load = function () {
+          api("/tables").then(function (j) { if (alive) onList(j.tables || []); }, function () { if (alive) onErr(); })
+            .then(function () { if (alive) timer = setTimeout(load, 5000); });
+        };
+        load();
+        return function () { alive = false; clearTimeout(timer); };
+      }
     };
   }
 
@@ -2249,7 +2333,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     confirmed = false;
     var t = histTarget();
     if (!t) {
-      histStatus.textContent = backend ? "Saved on this device. Turn on live sync to share history with your table." : "Saved on this device only.";
+      histStatus.textContent = backend ? "Saved on this device. Join a live table to share history with it." : "Saved on this device only.";
       return;
     }
     var timer = setTimeout(function () {
@@ -2399,10 +2483,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function saveLivePref() { try { localStorage.setItem(LKEY, JSON.stringify(livePref)); } catch (e) {} }
 
   function setLive(kind, msg) {
-    liveBadge.hidden = kind === "off";
+    liveBadge.hidden = !backend;
     liveBadge.classList.toggle("on", kind === "live");
     liveBadge.classList.toggle("warn", kind === "warn");
-    liveText.textContent = msg || "";
+    liveText.textContent = kind === "off" ? "Play live" : (msg || "");
+    liveBadge.setAttribute("aria-label", kind === "off" ? "Play live: find or start a table" : (msg || "") + ". Open live play");
+    if (typeof tablesDlg !== "undefined" && tablesDlg && tablesDlg.open) renderHere();
   }
 
   function stopLive() {
@@ -2426,7 +2512,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           var first = !liveJoined;
           if (first) { liveJoined = true; clearTimeout(liveTimer); }
           setLive("live", "Live · " + table);
-          if (!d) { if (first) pushLive(); return; }
+          if (!d) { if (first) { pushLive(); toast("Started table " + table + "."); } return; }
           if (d.by === clientId) return;
           if (!validState(d.state)) { if (first) pushLive(); return; }
           adoptRemote(d.state, first);
@@ -2529,8 +2615,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     document.getElementById("seatHint").textContent = mode === "partners"
       ? "Seats go red, blue, red, blue around the table, so partners sit across from each other. Player 1 deals first."
       : "Seats go in this order clockwise. Player 1 deals first.";
-    var live = document.getElementById("liveOn").checked;
-    document.getElementById("tableField").hidden = !live;
     note.textContent = (mode !== state.mode || n !== state.count) ? "This starts a new match." : "";
   }
   function openSetup() {
@@ -2542,14 +2626,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     styleAtOpen = boardStyle;
     var sr = document.getElementById("style-" + boardStyle);
     if (sr) sr.checked = true;
-    document.getElementById("liveOn").checked = !!livePref.on;
-    document.getElementById("liveTable").value = livePref.table;
-    getBackend().then(function (b) {
-      document.getElementById("liveOn").disabled = !b;
-      if (!b) { document.getElementById("liveOn").checked = false; syncSetup(); }
-      document.getElementById("liveNote").textContent = !b ? "Live sync isn't set up for this copy of the app."
-        : b.kind === "server" ? "Anyone who enters the same table name joins your game and shares its history, so pick a name only your group knows." : "";
-    });
+    getBackend().then(function (b) { document.getElementById("liveSection").hidden = !b; });
     syncSetup();
     try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
   }
@@ -2582,7 +2659,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   document.getElementById("openSetup").addEventListener("click", openSetup);
   document.getElementById("cancelSetup").addEventListener("click", function () { revertStyle(); closeSetup(); });
   dlg.addEventListener("cancel", revertStyle);
-  document.querySelectorAll('input[name="count"], input[name="mode"], #liveOn').forEach(function (r) { r.addEventListener("change", syncSetup); });
+  document.querySelectorAll('input[name="count"], input[name="mode"]').forEach(function (r) { r.addEventListener("change", syncSetup); });
 
   var resetBtn = document.getElementById("resetMatch");
   var resetTimer = null;
@@ -2620,19 +2697,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       state.names = names;
       if (guided !== state.guided) { state.guided = guided; state.phase = "peg"; state.step = 0; }
     }
-    var newLive = { on: document.getElementById("liveOn").checked, table: slug(document.getElementById("liveTable").value) };
-    var liveChanged = newLive.on !== livePref.on || newLive.table !== livePref.table;
     closeSetup();
-    if (liveChanged) {
-      livePref = newLive;
-      saveLivePref();
-      saveLocal();
-      render(false);
-      // Joining a table adopts the game already there; a new table takes this device's game
-      getBackend().then(function () { startLive(); startHistory(); });
-    } else {
-      commit(false);
-    }
+    commit(false);
   });
 
   // ---------- Keep the screen awake during a game ----------
@@ -2702,6 +2768,187 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     var done = function () { btn.textContent = "Copied"; };
     var fallback = function () { input.focus(); input.select(); btn.textContent = "Selected"; };
     try { navigator.clipboard.writeText(input.value).then(done, fallback); } catch (e) { fallback(); }
+  });
+
+  // ---------- Live play: find, join, start or leave a table ----------
+  var tablesDlg = document.getElementById("tablesDlg");
+  var tblList = document.getElementById("tblList");
+  var tblHere = document.getElementById("tblHere");
+  var tables = null, tablesErr = false, tablesUnsub = null, armedJoin = null, armTimer = null;
+
+  function ago(ms) {
+    var m = Math.round((Date.now() - ms) / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return m + " min ago";
+    var h = Math.round(m / 60);
+    return h < 24 ? h + " hr ago" : fmtDate(ms);
+  }
+  function atTable() { return livePref.on ? livePref.table : null; }
+
+  function renderHere() {
+    var here = atTable();
+    if (!here) { tblHere.innerHTML = ""; return; }
+    var t = (tables || []).find(function (x) { return x.name === here; });
+    var phones = t && t.devices ? (t.devices === 1 ? "1 phone connected" : t.devices + " phones connected") : liveJoined ? "Connected" : "Connecting…";
+    tblHere.innerHTML =
+      '<div class="tbl-here"><div><small>You\'re at table</small><strong></strong><small>' + phones + '</small></div>' +
+      '<button type="button" class="btn-ghost" id="tblLeave">Leave</button></div>' +
+      '<label class="check"><input type="checkbox" id="tblListed"' + (state.listed !== false ? " checked" : "") + '>' +
+      '<span>Show this table in the list<small>Turn off to keep it private. People can still join by typing its name.</small></span></label>';
+    tblHere.querySelector("strong").textContent = here;
+    document.getElementById("tblLeave").addEventListener("click", leaveTable);
+    document.getElementById("tblListed").addEventListener("change", function () {
+      state.listed = this.checked;
+      commit(false);
+    });
+  }
+
+  function renderTables() {
+    renderHere();
+    if (tablesErr && !tables) { tblList.innerHTML = '<li><p class="empty">Couldn\'t load the table list. Check your connection; it will keep trying.</p></li>'; return; }
+    if (!tables) { tblList.innerHTML = '<li><p class="empty">Looking for tables…</p></li>'; return; }
+    var here = atTable();
+    var others = tables.filter(function (t) { return t.name !== here; });
+    if (!others.length) {
+      tblList.innerHTML = '<li><p class="empty">' + (here ? "No other tables are open right now." : "No tables are open right now. Start one below and it will show here for others.") + '</p></li>';
+      return;
+    }
+    tblList.innerHTML = others.map(function (t) {
+      var players = t.players.map(function (nm, i) {
+        return '<span><span class="sw" style="--pc:' + COLORS[i] + '"></span>' + esc(nm) + ' <b>' + (t.scores[i] || 0) + '</b></span>';
+      }).join("");
+      var meta = ["Game " + t.game + (t.over ? ", finished" : "")];
+      if (t.devices) meta.push('<span class="now">' + (t.devices === 1 ? "1 phone connected" : t.devices + " phones connected") + '</span>');
+      meta.push(t.devices ? "updated " + ago(t.updatedAt) : ago(t.updatedAt));
+      var armed = armedJoin === t.name;
+      return '<li><div class="tbl-info"><div class="tbl-name">' + esc(t.name) + '</div><div class="tbl-players">' + players + '</div>' +
+        '<div class="tbl-meta">' + meta.join(" · ") + '</div></div>' +
+        '<button type="button" class="btn-solid tbl-join' + (armed ? " confirm" : "") + '" data-name="' + esc(t.name) + '">' + (armed ? "Replace my game?" : "Join") + '</button></li>';
+    }).join("");
+    tblList.querySelectorAll(".tbl-join").forEach(function (btn) {
+      btn.addEventListener("click", function () { askJoin(btn.getAttribute("data-name")); });
+    });
+  }
+
+  // Joining a table shows its game. A game that lives only on this phone (not at a table) is lost by that,
+  // so ask once first; a game at a live table stays saved with that table.
+  function askJoin(name) {
+    var busy = state.moves.length > 0 && !atTable();
+    if (busy && armedJoin !== name) {
+      armedJoin = name;
+      clearTimeout(armTimer);
+      armTimer = setTimeout(function () { armedJoin = null; if (tablesDlg.open) renderTables(); }, 4000);
+      renderTables();
+      return;
+    }
+    armedJoin = null;
+    joinTable(name);
+  }
+  function joinTable(name) {
+    livePref = { on: true, table: slug(name) };
+    saveLivePref();
+    closeTables();
+    getBackend().then(function () { startLive(); startHistory(); });
+  }
+  function leaveTable() {
+    var was = livePref.table;
+    livePref = { on: false, table: livePref.table };
+    saveLivePref();
+    stopLive();
+    startHistory();
+    renderTables();
+    toast("Left table " + was + ". This game stays on your phone.");
+  }
+
+  function suggestName() {
+    var base = slug(state.mode === "partners" ? pname(0) + " " + pname(1) : pname(0) + " " + pname(1));
+    var taken = (tables || []).map(function (t) { return t.name; });
+    if (base === "main" || /^player-1-player-2$/.test(base) || taken.indexOf(base) >= 0 || atTable() === base) return randomTable();
+    return base;
+  }
+
+  var lastSuggestion = "", formArmed = null, formTimer = null;
+  var tblName = document.getElementById("tblName"), tblGo = document.getElementById("tblGo"), tblNewHint = document.getElementById("tblNewHint");
+  var NEW_HINT = "A new name starts a table and brings your current game. The name of a hidden table joins it.";
+  function disarmForm() {
+    formArmed = null;
+    clearTimeout(formTimer);
+    tblGo.textContent = "Go";
+    tblGo.classList.remove("confirm");
+    tblGo.disabled = false;
+    tblNewHint.textContent = NEW_HINT;
+  }
+  // Hidden tables aren't in the list, so ask the server whether the suggested name is free
+  function checkSuggestion() {
+    var name = lastSuggestion;
+    getBackend().then(function (b) { return b ? b.peekTable(name) : null; }).then(function (doc) {
+      if (doc && validState(doc.state) && tblName.value === name && lastSuggestion === name) tblName.value = lastSuggestion = randomTable();
+    }, function () {});
+  }
+  function openTables() {
+    armedJoin = null;
+    tablesErr = false;
+    disarmForm();
+    tblName.value = lastSuggestion = suggestName();
+    checkSuggestion();
+    renderTables();
+    try { tablesDlg.showModal(); } catch (e) { tablesDlg.setAttribute("open", ""); }
+    getBackend().then(function (b) {
+      if (!b || !tablesDlg.open) return;
+      if (tablesUnsub) tablesUnsub();
+      tablesUnsub = b.listTables(function (list) {
+        tables = list;
+        tablesErr = false;
+        // Keep the suggestion clear of tables that turned up, unless the player has typed their own name
+        if (tblName.value === lastSuggestion && !formArmed) {
+          var next = suggestName();
+          if (next !== lastSuggestion) { tblName.value = lastSuggestion = next; checkSuggestion(); }
+        }
+        if (tablesDlg.open) renderTables();
+      }, function () {
+        tablesErr = true;
+        if (tablesDlg.open) renderTables();
+      });
+    });
+  }
+  function closeTables() {
+    if (tablesUnsub) { tablesUnsub(); tablesUnsub = null; }
+    try { tablesDlg.close(); } catch (e) { tablesDlg.removeAttribute("open"); }
+  }
+  liveBadge.addEventListener("click", openTables);
+  document.getElementById("tblClose").addEventListener("click", closeTables);
+  tablesDlg.addEventListener("close", function () { if (tablesUnsub) { tablesUnsub(); tablesUnsub = null; } disarmForm(); });
+  tblName.addEventListener("input", function () { if (formArmed) disarmForm(); });
+  document.getElementById("setupTables").addEventListener("click", function () { closeSetup(); openTables(); });
+  document.getElementById("tblNew").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var raw = tblName.value.trim();
+    if (!raw) { tblName.focus(); return; }
+    var name = slug(raw);
+    if (formArmed === name) { disarmForm(); joinTable(name); return; }
+    if (atTable() === name) { closeTables(); return; }
+    tblGo.disabled = true;
+    tblGo.textContent = "…";
+    getBackend().then(function (b) { return b.peekTable(name); }).then(function (doc) {
+      tblGo.disabled = false;
+      tblGo.textContent = "Go";
+      var exists = !!(doc && validState(doc.state));
+      if (exists && state.moves.length > 0 && !atTable()) {
+        formArmed = name;
+        tblGo.textContent = "Join anyway";
+        tblGo.classList.add("confirm");
+        tblNewHint.textContent = "Table " + name + " already has a game. Joining shows that game instead of the one on this phone.";
+        clearTimeout(formTimer);
+        formTimer = setTimeout(disarmForm, 6000);
+        return;
+      }
+      // A new table starts listed, with this phone's game
+      if (!exists) { state.listed = true; saveLocal(); }
+      joinTable(name);
+    }, function () {
+      disarmForm();
+      tblNewHint.textContent = "Couldn't reach table " + name + ". Check your connection and try again.";
+    });
   });
 
   // ---------- Tabs: #game and #history ----------
