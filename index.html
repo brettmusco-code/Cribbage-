@@ -161,21 +161,17 @@ button { cursor: pointer; }
 }
 
 .win {
-  position: absolute;
-  left: 10px; right: 10px; bottom: 10px;
-  background: var(--surface);
-  color: var(--ink);
-  border-radius: 12px;
-  padding: 12px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px 16px;
+  gap: 12px 16px;
   flex-wrap: wrap;
-  box-shadow: 0 10px 30px rgba(0,0,0,.3);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
 }
-.win-text { min-width: 0; }
-.win-text strong { font-family: var(--font-display); font-size: 1.25rem; display: block; line-height: 1.15; }
+.win-text { min-width: 0; display: grid; gap: 2px; }
+.win-text strong { font-family: var(--font-display); font-size: 1.4rem; line-height: 1.15; text-wrap: balance; }
 .win-text span { color: var(--muted); font-size: .95rem; }
 .win-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -209,11 +205,15 @@ button { cursor: pointer; }
 /* Hand guide */
 .handbar {
   background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
-  padding: 12px 14px; display: grid; gap: 10px;
+  padding: 12px 14px; display: grid; gap: 8px;
 }
-.hb-top { display: flex; justify-content: space-between; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; }
-.hb-top strong { font-family: var(--font-display); font-size: 1.15rem; }
-.hb-top span { color: var(--muted); font-size: .9rem; }
+.hb-top { display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; }
+.hb-title { display: flex; align-items: baseline; gap: 2px 10px; flex-wrap: wrap; min-width: 0; }
+.hb-title strong { font-family: var(--font-display); font-size: 1.15rem; }
+.hb-title span { color: var(--muted); font-size: .9rem; }
+.hb-btn { min-height: 38px; padding: 0 14px; flex: none; }
+.hb-tip { margin: 0; font-size: .9rem; color: var(--muted); }
+.hb-tip b { color: var(--ink); }
 .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .steps li {
   display: inline-flex; align-items: center; gap: 6px;
@@ -223,9 +223,6 @@ button { cursor: pointer; }
 .steps li .sw { width: 8px; height: 8px; }
 .steps li.done { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
 .steps li.cur { color: var(--ink); font-weight: 700; border-color: var(--accent); background: var(--accent-soft); }
-.hb-act { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.hb-act p { margin: 0; flex: 1 1 14rem; min-width: 0; font-size: .95rem; }
-.hb-act button { flex: none; }
 
 /* Player cards */
 .players { display: grid; gap: 14px; }
@@ -262,7 +259,12 @@ button { cursor: pointer; }
   color: var(--ink);
   flex: none;
 }
-.turnpill { background: var(--accent); color: var(--surface); }
+.card { position: relative; }
+.turnpill {
+  position: absolute; top: -10px; right: 12px;
+  background: var(--accent); color: var(--surface);
+  box-shadow: 0 0 0 3px var(--bg);
+}
 .wins { margin-left: auto; color: var(--muted); font-size: .9rem; font-variant-numeric: tabular-nums; flex: none; }
 
 .scorers { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
@@ -307,6 +309,7 @@ button { cursor: pointer; }
 .q:disabled, .custom :disabled { opacity: .4; cursor: default; }
 
 .custom { grid-column: 1 / -1; display: flex; gap: 8px; }
+.players.over .quick, .players.over .err, .players.over .scorers { display: none; }
 .custom input {
   flex: 1 1 auto; min-width: 0;
   height: 46px; padding: 0 12px;
@@ -417,10 +420,22 @@ table.data th:first-child, table.data td:first-child { text-align: left; padding
 .pl { display: inline-flex; align-items: center; gap: 8px; max-width: 13rem; vertical-align: middle; }
 .pl span:last-child { overflow: hidden; text-overflow: ellipsis; }
 table.data .strong { font-family: var(--font-num); font-weight: 700; font-size: 1.1rem; }
-table.data .res { color: var(--muted); }
+table.data .res { display: block; color: var(--muted); font-size: .8rem; margin: 1px 0 0 18px; }
 .final { margin-top: 10px; }
 .table-wrap { overflow-x: auto; }
 .stats { min-width: 640px; }
+.stat-list { list-style: none; margin: 0; padding: 0; display: none; }
+.stat-list li { padding: 9px 0; border-top: 1px solid var(--line); }
+.stat-list li:first-child { border-top: 0; }
+.sl-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.sl-top .pl { font-weight: 700; min-width: 0; }
+.sl-rec { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sl-rec b { color: var(--ink); font-family: var(--font-num); font-size: 1.15rem; }
+.sl-sub { color: var(--muted); font-size: .85rem; margin: 2px 0 0 18px; }
+@media (max-width: 599px) {
+  .stats-wrap { display: none; }
+  .stat-list { display: block; }
+}
 
 .hist-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .hist-status { color: var(--muted); font-size: .85rem; }
@@ -562,17 +577,7 @@ dialog h3 {
 
   <div class="view" id="viewGame" role="tabpanel" aria-labelledby="tabGame">
   <section class="board" id="boardWrap" aria-label="Cribbage board">
-    <svg id="board" role="img" aria-label="Peg positions"></svg>
-    <div class="win" id="win" hidden>
-      <div class="win-text" aria-live="polite">
-        <strong id="winTitle"></strong>
-        <span id="winSub"></span>
-      </div>
-      <div class="win-actions">
-        <button class="btn-ghost" id="winUndo" type="button">Undo last</button>
-        <button class="btn-solid" id="nextGame" type="button">Next game</button>
-      </div>
-    </div>
+    <svg id="board" role="img" aria-label="Cribbage board"></svg>
   </section>
 
   <nav class="toolbar" aria-label="Game controls">
@@ -587,8 +592,17 @@ dialog h3 {
 
   <section class="handbar" id="handbar" aria-live="polite" hidden></section>
 
-  <section class="panel" id="recap" aria-label="Game recap" hidden>
-    <h2>Game recap</h2>
+  <section class="panel" id="recap" aria-label="Game result" hidden>
+    <div class="win" id="win">
+      <div class="win-text" aria-live="polite">
+        <strong id="winTitle"></strong>
+        <span id="winSub"></span>
+      </div>
+      <div class="win-actions">
+        <button class="btn-ghost" id="winUndo" type="button">Undo last</button>
+        <button class="btn-solid" id="nextGame" type="button">Next game</button>
+      </div>
+    </div>
     <div id="recapBody"></div>
   </section>
 
@@ -676,7 +690,7 @@ dialog h3 {
   <div class="linkrow">
     <label class="sr" for="shareUrl">App link</label>
     <input id="shareUrl" type="text" readonly>
-    <button type="button" class="btn-ghost" id="copyLink">Copy</button>
+    <button type="button" class="btn-ghost" id="copyLink" autofocus>Copy</button>
   </div>
   <h3>Install on this phone</h3>
   <div class="install" id="installBody"></div>
@@ -1375,6 +1389,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   // Put each side's score tag next to its front peg, on the outside of the lanes, nudging tags apart along the track
   function placeTags() {
+    svg.setAttribute("aria-label", "Cribbage board. " + state.sides.map(function (sd, s) { return sideName(s) + " " + sd.score; }).join(", ") + ".");
     var items = [];
     tagEls.forEach(function (t, p) {
       var sc = state.sides[p] ? state.sides[p].score : 0;
@@ -1527,6 +1542,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     var top = Math.max.apply(null, state.sides.map(function (x) { return x.score; }));
     var over = state.winner !== null;
     var cur = currentCount();
+    document.getElementById("players").classList.toggle("over", over);
     var dealerSide = sideOf(state.dealer);
     cards.forEach(function (c, s) {
       var sd = state.sides[s];
@@ -1536,7 +1552,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         ? '<span class="long">' + esc(pname(state.dealer)) + ' deals · </span>crib'
         : '<span class="long">Dealer · </span>crib';
       var w = state.wins[s] || 0;
-      c.wins.textContent = w === 1 ? "1 game" : w + " games";
+      c.wins.textContent = w ? (w === 1 ? "1 win" : w + " wins") : "";
       c.score.textContent = sd.score;
       c.togo.textContent = sd.score >= 121 ? "Winner" : (121 - sd.score) + " to go";
       c.last.innerHTML = sd.last ? "Last <b>+" + sd.last + "</b>" : "&nbsp;";
@@ -1571,19 +1587,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       return '<li class="' + cls + '" style="--pc:' + COLORS[sideOf(o.p)] + '"><span class="sw"></span>' +
         esc(pname(o.p)) + (o.k === "crib" ? "'s crib" : "") + '</li>';
     }).join("");
-    var act;
+    var btn, tip;
     if (state.phase === "peg") {
-      act = '<p>Score pegging as you play, including go and last card.</p>' +
-        '<button type="button" class="btn-solid" id="donePeg">Pegging done</button>';
+      btn = '<button type="button" class="btn-solid hb-btn" id="donePeg">Pegging done</button>';
+      tip = 'Score pegging as you play, including go and last card.';
     } else {
-      var what = cur.k === "crib" ? "crib" : "hand";
-      act = '<p>Count <b>' + esc(pname(cur.p)) + "'s " + what + '</b>. Tap the total on their card.</p>' +
-        '<button type="button" class="btn-ghost" id="zeroPts">No points</button>';
+      btn = '<button type="button" class="btn-ghost hb-btn" id="zeroPts">No points</button>';
+      tip = 'Count <b>' + esc(pname(cur.p)) + "'s " + (cur.k === "crib" ? "crib" : "hand") + '</b>, then tap the total on their card.';
     }
     handbar.innerHTML =
-      '<div class="hb-top"><strong>Hand ' + state.hand + '</strong><span>' + esc(pname(state.dealer)) + ' deals</span></div>' +
+      '<div class="hb-top"><div class="hb-title"><strong>Hand ' + state.hand + '</strong><span>' + esc(pname(state.dealer)) + ' deals</span></div>' + btn + '</div>' +
       '<ol class="steps">' + steps + '</ol>' +
-      '<div class="hb-act">' + act + '</div>';
+      '<p class="hb-tip">' + tip + '</p>';
     var d = document.getElementById("donePeg");
     if (d) d.addEventListener("click", donePegging);
     var z = document.getElementById("zeroPts");
@@ -1633,7 +1648,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     renderLog();
     var win = document.getElementById("win");
     if (state.winner !== null) {
-      document.getElementById("winTitle").textContent = sideName(state.winner) + (state.mode === "partners" ? " win" : " wins");
+      var others = state.sides.filter(function (sd, s) { return s !== state.winner; }).map(function (sd) { return sd.score; });
+      document.getElementById("winTitle").textContent = sideName(state.winner) + (state.mode === "partners" ? " win" : " wins") +
+        " by " + (121 - Math.max.apply(null, others));
       document.getElementById("winSub").textContent = skunkNote();
       win.hidden = false;
     } else {
@@ -1694,6 +1711,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       sd.last = n;
     }
     state.moves.push({ p: p, s: side, n: n, k: k, to: sd.score });
+    var justWon = sd.score >= 121;
     if (sd.score >= 121) {
       state.winner = side;
       state.wins[side] = (state.wins[side] || 0) + 1;
@@ -1704,9 +1722,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       advanceCount();
     }
     commit(true);
+    if (justWon) showResult();
     popScore(side, n);
     var s = cards[side] && cards[side].score;
     if (s && n) { s.classList.remove("bump"); void s.offsetWidth; s.classList.add("bump"); }
+  }
+
+  function showResult() {
+    try { window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }); } catch (e) { window.scrollTo(0, 0); }
   }
 
   function donePegging() {
@@ -1953,28 +1976,33 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     hit.addEventListener("pointerleave", hide);
   }
 
-  function renderRecap(root, rec) {
+  function marginOf(rec) {
+    var others = rec.sides.filter(function (sd, s) { return s !== rec.winner; }).map(function (sd) { return sd.score; });
+    return 121 - Math.max.apply(null, others.length ? others : [0]);
+  }
+
+  function renderRecap(root, rec, opts) {
+    opts = opts || {};
     var rows = scoreRows(rec);
     var M = rows.length - 1;
     var order = rec.sides.map(function (sd, s) { return s; }).sort(function (a, b) { return rec.sides[b].score - rec.sides[a].score; });
-    var second = order.length > 1 ? rec.sides[order[1]].score : 0;
     var w = rec.sides[rec.winner];
     var lab = labelled(rec);
     var cell = function (s, kind) { return lab ? kindTotal(rec, s, kind) : "–"; };
     root.innerHTML =
-      '<div class="recap-title"><strong>' + esc(w.name) + ' won by ' + (121 - second) + '</strong>' +
+      '<div class="recap-title">' + (opts.noTitle ? '' : '<strong>' + esc(w.name) + ' won by ' + marginOf(rec) + '</strong>') +
       '<span>Game ' + rec.gameNo + (rec.mode === "partners" ? " · partners" : "") + ' · ' + M + ' scores entered · ' + esc(fmtDate(rec.endedAt)) + '</span></div>' +
       '<div class="legend">' + rec.sides.map(function (sd) {
         return '<span style="--pc:' + COLORS[sd.peg] + '"><i></i>' + esc(sd.name) + '</span>';
       }).join("") + '</div>' +
       '<div class="chart"></div>' +
       '<div class="table-wrap final"><table class="data"><thead><tr><th>' + (rec.mode === "partners" ? "Team" : "Player") +
-      '</th><th>Score</th><th>Pegging</th><th>Hands</th><th>Crib</th><th>Result</th></tr></thead><tbody>' +
+      '</th><th>Score</th><th>Pegging</th><th>Hands</th><th>Crib</th></tr></thead><tbody>' +
       order.map(function (s) {
         var sd = rec.sides[s];
-        return '<tr><td><span class="pl"><span class="sw" style="--pc:' + COLORS[sd.peg] + '"></span><span>' + esc(sd.name) + '</span></span></td>' +
-          '<td class="strong">' + sd.score + '</td><td>' + cell(s, "peg") + '</td><td>' + cell(s, "hand") + '</td><td>' + cell(s, "crib") + '</td>' +
-          '<td class="res">' + resultLabel(rec, s) + '</td></tr>';
+        return '<tr><td><span class="pl"><span class="sw" style="--pc:' + COLORS[sd.peg] + '"></span><span>' + esc(sd.name) + '</span></span>' +
+          '<span class="res">' + resultLabel(rec, s) + '</span></td>' +
+          '<td class="strong">' + sd.score + '</td><td>' + cell(s, "peg") + '</td><td>' + cell(s, "hand") + '</td><td>' + cell(s, "crib") + '</td></tr>';
       }).join("") + '</tbody></table></div>';
     var box = root.querySelector(".chart");
     charts.set(box, rec);
@@ -1990,7 +2018,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     panel.hidden = false;
     if (key === recapKey) return;
     recapKey = key;
-    renderRecap(document.getElementById("recapBody"), buildRecord());
+    renderRecap(document.getElementById("recapBody"), buildRecord(), { noTitle: true });
   }
 
   function fmtDate(ms) {
@@ -2258,9 +2286,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     renderHistory();
     getBackend().then(function (b) {
       backend = b;
-      if (livePref.on === null) {
+      if (livePref.on === null && b) {
         // On claude.ai everyone with the page shares table "main". The public app starts private with a random table.
-        livePref = b && b.kind === "server" ? { on: false, table: randomTable() } : { on: true, table: "main" };
+        livePref = b.kind === "server" ? { on: false, table: randomTable() } : { on: true, table: "main" };
         saveLivePref();
       }
       startHistory();
@@ -2309,7 +2337,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     var stats = computeStats();
     var one = function (n, d) { return d ? (n / d).toFixed(1) : "–"; };
-    var html = '<div class="table-wrap"><table class="data stats"><thead><tr><th>Player</th><th>Games</th><th>Wins</th><th>Win %</th>' +
+    var html = '<div class="table-wrap stats-wrap"><table class="data stats"><thead><tr><th>Player</th><th>Games</th><th>Wins</th><th>Win %</th>' +
       '<th>Avg hand</th><th>Avg crib</th><th>Pegging / game</th><th>Best hand</th><th>Skunks</th><th>Skunked</th></tr></thead><tbody>' +
       stats.map(function (s) {
         return '<tr><td><span class="pl"><span class="sw" style="--pc:' + COLORS[s.peg] + '"></span><span>' + esc(s.name) + '</span></span></td>' +
@@ -2317,6 +2345,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           '<td>' + one(s.handSum, s.handN) + '</td><td>' + one(s.cribSum, s.cribN) + '</td><td>' + one(s.pegSum, s.lg) + '</td>' +
           '<td>' + (s.handN ? s.bestHand : "–") + '</td><td>' + s.given + '</td><td>' + s.taken + '</td></tr>';
       }).join("") + '</tbody></table></div>' +
+      '<ul class="stat-list">' + stats.map(function (s) {
+        var bits = [];
+        if (s.handN) bits.push("Avg hand " + one(s.handSum, s.handN), "best " + s.bestHand);
+        if (s.cribN) bits.push("Avg crib " + one(s.cribSum, s.cribN));
+        if (s.lg) bits.push("Pegging " + one(s.pegSum, s.lg) + " a game");
+        bits.push("Skunks " + s.given, "skunked " + s.taken);
+        return '<li><div class="sl-top"><span class="pl"><span class="sw" style="--pc:' + COLORS[s.peg] + '"></span><span>' + esc(s.name) + '</span></span>' +
+          '<span class="sl-rec"><b>' + s.won + '</b> of ' + s.played + ' won · ' + Math.round(s.won / s.played * 100) + '%</span></div>' +
+          '<div class="sl-sub">' + bits.join(" · ") + '</div></li>';
+      }).join("") + '</ul>' +
       '<p class="hint">Hand, crib and pegging figures come from games played with the hand guide on.</p>';
     html += '<h3>Past games</h3><ol class="games">' + games.slice(0, shown).map(function (g) {
       var w = g.sides[g.winner];
@@ -2421,11 +2459,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   function adoptRemote(remote, first) {
     var structural = remote.mode !== state.mode || remote.count !== state.count;
-    var prev = state.moves.length;
+    var prev = state.moves.length, wasOver = state.winner !== null;
     state = clone(remote);
     saveLocal();
     if (structural || first) { buildBoard(); buildCards(); render(false); }
     else render(true);
+    if (!wasOver && state.winner !== null) showResult();
     if (first) toast("Joined table " + livePref.table + ".");
     else if (state.moves.length === prev + 1) {
       var m = state.moves[state.moves.length - 1];
@@ -2448,9 +2487,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!g) return;
     openGameId = id;
     disarmDelete();
-    document.getElementById("gdTitle").textContent = "Game " + g.gameNo;
+    document.getElementById("gdTitle").textContent = g.sides[g.winner].name + " won by " + marginOf(g);
     try { gameDlg.showModal(); } catch (e) { gameDlg.setAttribute("open", ""); }
-    renderRecap(document.getElementById("gdBody"), g);
+    renderRecap(document.getElementById("gdBody"), g, { noTitle: true });
   }
   function closeGame() { try { gameDlg.close(); } catch (e) { gameDlg.removeAttribute("open"); } }
   document.getElementById("gdClose").addEventListener("click", closeGame);
@@ -2507,6 +2546,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     document.getElementById("liveTable").value = livePref.table;
     getBackend().then(function (b) {
       document.getElementById("liveOn").disabled = !b;
+      if (!b) { document.getElementById("liveOn").checked = false; syncSetup(); }
       document.getElementById("liveNote").textContent = !b ? "Live sync isn't set up for this copy of the app."
         : b.kind === "server" ? "Anyone who enters the same table name joins your game and shares its history, so pick a name only your group knows." : "";
     });
