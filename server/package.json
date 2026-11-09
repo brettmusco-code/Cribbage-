@@ -1,0 +1,12 @@
+{
+  "name": "cribbage-sync",
+  "private": true,
+  "description": "Live tables and shared game history for the cribbage board, on Cloudflare Workers.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.152.0"
+  }
+}
