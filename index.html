@@ -133,11 +133,18 @@ button { cursor: pointer; }
 .board svg { display: block; width: 100%; height: auto; }
 .board .lane { fill: none; stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; opacity: .26; }
 .board .turn { fill: none; stroke: var(--brass); stroke-opacity: .6; stroke-width: 1.2; }
-.board .lbl { fill: var(--brass); font-family: var(--font-num); font-weight: 600; font-size: 5.6px; letter-spacing: .12em; }
-.board .num { fill: var(--brass); opacity: .8; font-family: var(--font-num); font-weight: 600; font-size: 5.2px; text-anchor: middle; dominant-baseline: central; }
+.board .lbl, .board .num {
+  fill: var(--brass); font-family: var(--font-num); font-weight: 700;
+  paint-order: stroke; stroke: var(--halo); stroke-width: 2.6px; stroke-linejoin: round;
+}
+.board .lbl { font-size: calc(7.4px * var(--ts, 1)); letter-spacing: .1em; }
+.board .num { font-size: calc(8.6px * var(--ts, 1)); text-anchor: middle; dominant-baseline: central; }
 .board .skunk { stroke: var(--brass); stroke-width: 1.1; stroke-linecap: round; opacity: .85; }
-.board .sk { dominant-baseline: central; font-size: 5px; letter-spacing: .04em; }
-.board .pip { fill: var(--brass); opacity: .55; }
+.board .sk { dominant-baseline: central; font-size: calc(7.4px * var(--ts, 1)); letter-spacing: .04em; }
+.board .pip { fill: var(--brass); opacity: .85; }
+.board .tag { transition: transform .45s cubic-bezier(.3,.75,.2,1); }
+.board .tag rect { stroke: #fff; stroke-width: 1.1px; }
+.board .tag text { font-family: var(--font-num); font-weight: 700; font-size: calc(8.4px * var(--ts, 1)); text-anchor: middle; dominant-baseline: central; }
 .board .engrave { font-family: var(--font-display); font-weight: 700; font-size: 8px; letter-spacing: .32em; text-anchor: middle; dominant-baseline: central; }
 .board .finish-ring { fill: none; stroke: var(--brass); stroke-width: 1; stroke-opacity: .7; }
 .board.won .finish-ring { animation: glow 1.1s ease-in-out infinite alternate; }
@@ -528,7 +535,7 @@ dialog h3 {
 .style-opt input:focus-visible + .sw-board { outline: 2.5px solid var(--accent); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .progress i, .board .peg-inner { transition: none; }
+  .progress i, .board .peg-inner, .board .tag { transition: none; }
   .score.bump, .board.won .finish-ring { animation: none; }
 }
 </style>
@@ -709,6 +716,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // Board geometry (SVG user units): lanes sit RS apart across the track
   var RS = 12;
   var GEO = null;
+  var tagEls = [];
 
   var state;
   var pegEls = [];
@@ -860,7 +868,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   var LAYOUTS = {
     // Four straight streets of 30, back and forth, with the inlay between the second and third
     classic: function (N) {
-      var LW = (N - 1) * RS, half = LW / 2, X0 = 46, ROWW = 320, TOP = 20, gaps = [0, 24, 64, 88];
+      var LW = (N - 1) * RS, half = LW / 2, X0 = 46, ROWW = 320, TOP = 24, gaps = [0, 26, 66, 92];
       var yc = function (k) { return TOP + half + k * LW + gaps[k]; };
       var runs = [];
       for (var k = 0; k < 4; k++) {
@@ -879,7 +887,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     },
     // One lap of 120 around an oval, with the inlay in the infield
     oval: function (N) {
-      var LW = (N - 1) * RS, half = LW / 2, R = 96, Ls = 280, m = half + 28, pts, poly, holeS, lx, rx, cy;
+      var LW = (N - 1) * RS, half = LW / 2, R = 96, Ls = 280, m = half + 34, pts, poly, holeS, lx, rx, cy;
       for (var it = 0; it < 12; it++) {
         lx = m + R; rx = lx + Ls; cy = m + R;
         pts = joinP(lineP(lx, m, rx, m), arcP(rx, cy, R, R, -Math.PI / 2, Math.PI / 2),
@@ -892,14 +900,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }
       var fin = at(poly, poly.L - 30);
       return {
-        W: 2 * m + 2 * R + Ls, H: 2 * m + 2 * R, runs: [{ pts: pts, poly: poly, holeS: holeS, count: 120, s0: 50, hs: 8, gg: 5, side: -1 }], links: [],
-        finish: [fin.x, fin.y], startLabel: offset(at(poly, 31), -(half + 11)), finishLabel: offset(fin, -(half + 15)),
+        W: 2 * m + 2 * R + Ls, H: 2 * m + 2 * R, ts: 1.4, runs: [{ pts: pts, poly: poly, holeS: holeS, count: 120, s0: 50, hs: 8, gg: 5, side: -1 }], links: [],
+        finish: [fin.x, fin.y], startLabel: offset(at(poly, 31), -(half + 16)), finishLabel: offset(fin, -(half + 17)),
         inlay: { x: lx + 4, y: cy - 9, w: Ls - 8, h: 18 }
       };
     },
     // An oval spiral that winds inward and finishes in the centre
     spiral: function (N) {
-      var LW = (N - 1) * RS, half = LW / 2, P = LW + 28, kx = 1.4, r0 = 46, m = half + 26;
+      var LW = (N - 1) * RS, half = LW / 2, P = LW + 31, kx = 1.4, r0 = 46, m = half + 26;
       var T, pts, poly, r1, cx, cy, holeS;
       for (T = 1.5; T <= 6; T += 0.125) {
         r1 = r0 + P * T; cx = m + kx * r1; cy = m + r1; pts = [];
@@ -913,8 +921,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (holeS[119] + 40 <= poly.L) break;
       }
       return {
-        W: 2 * cx, H: 2 * cy, runs: [{ pts: pts, poly: poly, holeS: holeS, count: 120, s0: 30, hs: 9, gg: 5, side: -1 }], links: [],
-        finish: [cx, cy], startLabel: offset(at(poly, 11), -(half + 11)), finishLabel: [cx, cy + 17],
+        W: 2 * cx, H: 2 * cy, ts: 1.2, runs: [{ pts: pts, poly: poly, holeS: holeS, count: 120, s0: 30, hs: 9, gg: 5, side: -1 }], links: [],
+        finish: [cx, cy], startLabel: offset(at(poly, 11), -(half + 14)), finishLabel: [cx, cy + 18],
         inlay: null, cornerSuits: true
       };
     },
@@ -938,7 +946,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     },
     // Three long wavy streets of 40
     wave: function (N) {
-      var LW = (N - 1) * RS, half = LW / 2, A = 6, lam = 140, X0 = 48, TOP = 22;
+      var LW = (N - 1) * RS, half = LW / 2, A = 6, lam = 140, X0 = 48, TOP = 28;
       var runLen = 4 + 39 * 9 + 7 * 5 + 4;
       var sinePts = function (span, y, ltr) {
         var n = Math.ceil(span / 2), a = [];
@@ -962,10 +970,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       var beg = function (k) { return runs[k].pts[0]; };
       var e2 = end(2);
       return {
-        W: X0 + span + 36, H: yc(2) + half + A + 46, runs: runs,
+        W: X0 + span + 36, H: yc(2) + half + A + 56, ts: 1.25, runs: runs,
         links: [uturn([end(0)[0] + 7, end(0)[1]], [beg(1)[0] + 7, beg(1)[1]], 9, 0), uturn([end(1)[0] - 7, end(1)[1]], [beg(2)[0] - 7, beg(2)[1]], -9, 0)],
         finish: [e2[0] + 20, e2[1]], startLabel: [X0 - 17, TOP - 7], finishLabel: [e2[0] + 20, e2[1] + 16],
-        inlay: { x: X0 - 3, y: yc(2) + half + A + 18, w: span + 6, h: 18 }
+        inlay: { x: X0 - 3, y: yc(2) + half + A + 28, w: span + 6, h: 18 }
       };
     }
   };
@@ -995,6 +1003,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     var r0 = L.runs[0], a = at(r0.poly, r0.s0 - 14), b = at(r0.poly, r0.s0 - 24);
     for (l = 0; l < N; l++) { var o = (l - (N - 1) / 2) * RS; start.push([offset(a, o), offset(b, o)]); }
     L.N = N; L.half = half; L.holes = holes; L.center = center; L.start = start;
+    L.ts = L.ts || 1;          // text scale: wide boards shrink more on a phone, so their text is drawn larger
+    L.lg = 11 * L.ts;          // distance from the outermost lane's centre line to hole numbers
     return L;
   }
 
@@ -1031,26 +1041,26 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   var SKEY = "cribbage-style-v1";
   var BRASS = ["#fbe7b0", "#c9973f", "#7a5520"];
   var STYLES = {
-    walnut: { name: "Walnut", shape: "Classic", layout: "classic", base: ["#8d5531", "#643519", "#4a2512"], grain: "wood", gd: 0.55, gl: 0.14,
+    walnut: { name: "Walnut", shape: "Classic", layout: "classic", base: ["#8d5531", "#643519", "#4a2512"], grain: "wood", gd: 0.4, gl: 0.1,
       label: "#dcbb70", metal: BRASS, slot: "#5a3d15", inlay: "#d8ae76", inlayGrain: true, inlayText: "#5b3215",
       suitDark: "#21130a", suitRed: "#a3301f", hole: ["#050201", "#170b04", "#3a210f"], rim: "rgba(255,222,176,.17)",
-      lane: 0.26, edge: "rgba(0,0,0,.38)", edgeHi: "rgba(255,226,180,.13)" },
-    maple: { name: "Maple", shape: "Racetrack", layout: "oval", base: ["#ecd0a4", "#dcb782", "#c99f69"], grain: "wood", gd: 0.3, gl: 0.22,
+      lane: 0.36, edge: "rgba(0,0,0,.38)", edgeHi: "rgba(255,226,180,.13)" },
+    maple: { name: "Maple", shape: "Racetrack", layout: "oval", base: ["#ecd0a4", "#dcb782", "#c99f69"], grain: "wood", gd: 0.22, gl: 0.18,
       label: "#6b4318", metal: BRASS, slot: "#5a3d15", inlay: "#5a3319", inlayGrain: false, inlayText: "#f0dcb8",
       suitDark: "#f4e6cc", suitRed: "#ef8a74", hole: ["#050201", "#1b0e05", "#4a2c14"], rim: "rgba(255,255,255,.4)",
-      lane: 0.34, edge: "rgba(80,45,15,.45)", edgeHi: "rgba(255,255,255,.35)" },
-    ebony: { name: "Ebony", shape: "Spiral", layout: "spiral", base: ["#3a302b", "#221c19", "#141110"], grain: "wood", gd: 0.5, gl: 0.07,
+      lane: 0.42, edge: "rgba(80,45,15,.45)", edgeHi: "rgba(255,255,255,.35)" },
+    ebony: { name: "Ebony", shape: "Spiral", layout: "spiral", base: ["#3a302b", "#221c19", "#141110"], grain: "wood", gd: 0.38, gl: 0.06,
       label: "#d9b45f", metal: BRASS, slot: "#5a3d15", inlay: "#c9a04a", inlayGrain: false, inlayText: "#2a1c08",
       suitDark: "#1a120a", suitRed: "#7a1d12", hole: ["#000000", "#060504", "#2a2420"], rim: "rgba(255,230,190,.10)",
-      ring: "rgba(217,180,95,.45)", lane: 0.4, edge: "rgba(0,0,0,.5)", edgeHi: "rgba(217,180,95,.25)" },
-    felt: { name: "Card table", shape: "Columns", layout: "columns", base: ["#2f7d51", "#246841", "#1a5133"], grain: "felt", gd: 0.35, gl: 0.08,
+      ring: "rgba(217,180,95,.45)", lane: 0.48, edge: "rgba(0,0,0,.5)", edgeHi: "rgba(217,180,95,.25)" },
+    felt: { name: "Card table", shape: "Columns", layout: "columns", base: ["#2f7d51", "#246841", "#1a5133"], grain: "felt", gd: 0.25, gl: 0.06,
       label: "#f1d98f", metal: BRASS, slot: "#5a3d15", inlay: "#f1e9d6", inlayGrain: false, inlayText: "#1f3b2b",
       suitDark: "#1b1b1b", suitRed: "#b3261e", hole: ["#03100a", "#0a2116", "#1f4a32"], rim: "rgba(255,255,255,.13)",
-      lane: 0.34, frame: { color: "#4a2c17", width: 7 } },
+      lane: 0.42, frame: { color: "#4a2c17", width: 7 } },
     slate: { name: "Slate", shape: "Wave", layout: "wave", base: ["#434b53", "#343b42", "#2a3036"], grain: "none", gd: 0, gl: 0,
       label: "#cfd6dc", metal: ["#ffffff", "#aab3bb", "#5d666f"], slot: "#3a4148", inlay: "#525c66", inlayGrain: false,
       inlayText: "#e9eef2", suitDark: "#e9eef2", suitRed: "#ff8a80", hole: ["#08090b", "#121518", "#3b434a"],
-      rim: "rgba(255,255,255,.10)", ring: "rgba(255,255,255,.14)", lane: 0.36, edge: "rgba(0,0,0,.35)", edgeHi: "rgba(255,255,255,.08)" }
+      rim: "rgba(255,255,255,.10)", ring: "rgba(255,255,255,.14)", lane: 0.44, edge: "rgba(0,0,0,.35)", edgeHi: "rgba(255,255,255,.08)" }
   };
   var STYLE_ORDER = ["walnut", "maple", "ebony", "felt", "slate"];
   function loadStyle() {
@@ -1115,6 +1125,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // Keep the whole board under about two thirds of the window height so the scoring cards stay in view
     boardWrap.style.maxWidth = "calc(" + (W / H).toFixed(3) + " * 66vh)";
     boardWrap.style.setProperty("--brass", S.label);
+    boardWrap.style.setProperty("--halo", S.base[1]);
+    boardWrap.style.setProperty("--ts", GEO.ts);
     boardWrap.style.background = S.base[2];
     while (svg.firstChild) svg.removeChild(svg.firstChild);
     buildDefs(S);
@@ -1180,9 +1192,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
     // Hole numbers every 10, small pips every 5
     for (k = 5; k <= 120; k += 5) {
-      var c = GEO.center[k - 1], q = offset(c.pt, c.run.side * (half + 9));
+      var c = GEO.center[k - 1], q = offset(c.pt, c.run.side * (half + GEO.lg));
       if (k % 10 === 0) text(String(k), { "class": "num", x: q[0], y: q[1] }, svg);
-      else el("circle", { "class": "pip", cx: q[0], cy: q[1], r: 0.8 }, svg);
+      else el("circle", { "class": "pip", cx: q[0], cy: q[1], r: 1.3 }, svg);
     }
 
     // Skunk lines: after hole 90 (skunk) and hole 60 (double skunk)
@@ -1195,7 +1207,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (lab) {
         text(mk[2], { "class": "lbl", "text-anchor": "middle", transform: "translate(" + lab[0] + " " + lab[1] + ") rotate(" + lab[2] + ")" }, svg);
       } else {
-        var q2 = offset(pt, -c.run.side * (half + 8));
+        var q2 = offset(pt, -c.run.side * (half + GEO.lg));
         text(mk[1], { "class": "lbl sk", "text-anchor": "middle", x: q2[0], y: q2[1] }, svg);
       }
     });
@@ -1206,9 +1218,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (S.ring) { h.setAttribute("stroke", S.ring); h.setAttribute("stroke-width", 0.6); }
     }
     for (p = 0; p < P; p++) {
-      GEO.holes[p].forEach(function (h) { drill(h[0], h[1], 2.5); });
-      drill(GEO.start[p][0][0], GEO.start[p][0][1], 2.5);
-      drill(GEO.start[p][1][0], GEO.start[p][1][1], 2.5);
+      GEO.holes[p].forEach(function (h) { drill(h[0], h[1], 2.7); });
+      drill(GEO.start[p][0][0], GEO.start[p][0][1], 2.7);
+      drill(GEO.start[p][1][0], GEO.start[p][1][1], 2.7);
     }
 
     var f = GEO.finish;
@@ -1219,6 +1231,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     drill(f[0], f[1], 3.4);
     text("121", { "class": "lbl", "text-anchor": "middle", "dominant-baseline": "central", x: GEO.finishLabel[0], y: GEO.finishLabel[1] }, svg);
+
+    // Score tags: each side's current score, in its colour, beside the hole its front peg is in
+    tagEls = [];
+    var tagLayer = el("g", {}, svg);
+    for (p = 0; p < P; p++) {
+      var tg = el("g", { "class": "tag", visibility: "hidden" }, tagLayer);
+      tg.style.transition = "none";
+      var tr = el("rect", { x: -9, y: -5.5, width: 18, height: 11, rx: 5.5 }, tg);
+      tr.style.fill = COLORS[p];
+      var tt = el("text", { x: 0, y: 0.4 }, tg);
+      tt.style.fill = ON_COLORS[p];
+      tagEls.push({ g: tg, rect: tr, text: tt, placed: false });
+    }
 
     // Pegs: two per side. A soft glow in the side's colour, a dark outline and a white rim keep them readable on every board.
     pegEls = [];
@@ -1279,6 +1304,52 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       });
     }
     boardWrap.classList.toggle("won", state.winner !== null);
+    placeTags();
+  }
+
+  // Put each side's score tag next to its front peg, on the outside of the lanes, nudging tags apart along the track
+  function placeTags() {
+    var items = [];
+    tagEls.forEach(function (t, p) {
+      var sc = state.sides[p] ? state.sides[p].score : 0;
+      if (sc < 1 || sc > 120) { t.g.setAttribute("visibility", "hidden"); return; }
+      var c = GEO.center[sc - 1], ts = GEO.ts;
+      var w = (8 + String(sc).length * 4.6) * ts, h = 11 * ts;
+      // How far the tag reaches across the track depends on which way the track runs here
+      var across = Math.abs(c.pt.ty) * w + Math.abs(c.pt.tx) * h;
+      var q = offset(c.pt, c.run.side * (GEO.half + 4.8 + across / 2));
+      items.push({ t: t, sc: sc, x: q[0], y: q[1], w: w, h: h, tx: c.pt.tx, ty: c.pt.ty });
+    });
+    // Space tags in track order: a tag further along moves further along, so tags never swap places
+    items.sort(function (a, b) { return a.sc - b.sc; });
+    for (var pass = 0; pass < 4; pass++) {
+      for (var i = 0; i < items.length; i++) for (var j = i + 1; j < items.length; j++) {
+        var A = items[i], B = items[j];
+        var need = (A.w + B.w) / 2 + 1.5;
+        if (Math.abs(A.x - B.x) < need && Math.abs(A.y - B.y) < (A.h + B.h) / 2 + 1) {
+          var push = need - Math.abs((B.x - A.x) * B.tx + (B.y - A.y) * B.ty);
+          B.x += B.tx * push; B.y += B.ty * push;
+        }
+      }
+    }
+    items.forEach(function (it) {
+      var t = it.t;
+      it.x = Math.min(Math.max(it.x, it.w / 2 + 3), GEO.W - it.w / 2 - 3);
+      it.y = Math.min(Math.max(it.y, it.h / 2 + 3), GEO.H - it.h / 2 - 3);
+      t.text.textContent = String(it.sc);
+      t.rect.setAttribute("x", (-it.w / 2).toFixed(1));
+      t.rect.setAttribute("width", it.w.toFixed(1));
+      t.rect.setAttribute("y", (-it.h / 2).toFixed(1));
+      t.rect.setAttribute("height", it.h.toFixed(1));
+      t.rect.setAttribute("rx", (it.h / 2).toFixed(1));
+      t.g.style.transform = "translate(" + it.x.toFixed(1) + "px," + it.y.toFixed(1) + "px)";
+      t.g.setAttribute("visibility", "visible");
+      if (!t.placed) {
+        t.placed = true;
+        // Let the first placement land without sliding in from the corner
+        requestAnimationFrame(function () { requestAnimationFrame(function () { t.g.style.transition = ""; }); });
+      }
+    });
   }
 
   function popScore(side, n) {
