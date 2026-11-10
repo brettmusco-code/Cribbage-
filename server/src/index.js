@@ -2,7 +2,8 @@
 //
 //   GET    /health                     → { ok: true }
 //   GET    /tables                     → { tables: [...] } tables in use that are listed, busiest first
-//   DELETE /t/<table>                  → delete the table: its game, its finished games and its list entry
+//   DELETE /t/<table>                  → delete the table: its game, its finished games and its list entry.
+//                                        Needs the X-Owner-Key header from the phone that started the table.
 //   GET    /t/<table>/ws               → WebSocket: live game for that table
 //   GET    /t/<table>/state            → { doc } (the live game, or null)
 //   GET    /t/<table>/games            → { games: [...] } newest first
@@ -14,7 +15,9 @@
 //                    (on connect, `deleted: true` too if the table was deleted and not started again)
 //                    { type: "games" }        the table's history changed; re-fetch it
 //                    { type: "deleted" }      the table was just deleted
-//   client → server  { type: "set", doc: { state, by } }
+//   client → server  { type: "set", doc: { state, by }, owner? }
+//                    `owner` is a secret key sent by the phone that starts the table; only the
+//                    first write to an empty table records it, and deleting the table needs it.
 //
 // Anyone who knows a table name can read and write it, so table names act as a
 // shared code for a group. A table shows in /tables unless its game sets
@@ -31,6 +34,11 @@ const HOUR = 60 * 60 * 1000;
 const LISTED_FOR = 24 * HOUR;    // a table stays in the list for a day after its last change
 const KEEP_FOR = 7 * 24 * HOUR;  // directory entries are dropped after a week
 const CONNECTED_FOR = 6 * HOUR;  // connection counts older than this are treated as stale
+
+async function sha256(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 function lobby(env) {
   return env.LOBBY.get(env.LOBBY.idFromName("lobby"));
@@ -52,6 +60,7 @@ function summarize(name, doc, devices) {
     game: Number(s.game) || 1,
     over: s.winner !== null && s.winner !== undefined,
     listed: s.listed !== false,
+    creator: typeof s.creator === "string" ? s.creator.slice(0, 40) : null,
     devices,
     updatedAt: Number(doc.updatedAt) || Date.now(),
     seenAt: Date.now(),
@@ -61,7 +70,7 @@ function summarize(name, doc, devices) {
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, X-Owner-Key",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -132,6 +141,13 @@ export class Table extends DurableObject {
     // Delete the table: tell connected phones, then clear its game, its finished games and its list entry.
     // A note of the deletion stays, so a phone that was offline learns of it instead of re-creating the table.
     if (rest === "/" && req.method === "DELETE") {
+      // Only the phone that started the table may delete it. Tables started before creators were
+      // recorded have no key, so anyone can delete those.
+      const ownerHash = await this.ctx.storage.get("ownerHash");
+      if (ownerHash) {
+        const key = req.headers.get("X-Owner-Key") || "";
+        if (!key || (await sha256(key)) !== ownerHash) return json({ error: "not_creator" }, 403);
+      }
       const name = await this.tableName(url);
       for (const ws of this.ctx.getWebSockets()) {
         try { ws.send(JSON.stringify({ type: "deleted" })); ws.close(4000, "table deleted"); } catch {}
@@ -186,6 +202,10 @@ export class Table extends DurableObject {
     try { m = JSON.parse(msg); } catch { return; }
     if (m && m.type === "set" && m.doc && typeof m.doc.state === "object" && m.doc.state) {
       const prev = await this.ctx.storage.get("state");
+      // The write that creates the table records its creator's key
+      if (!prev && typeof m.owner === "string" && m.owner.length >= 16 && m.owner.length <= 128) {
+        await this.ctx.storage.put("ownerHash", await sha256(m.owner));
+      }
       const doc = {
         state: m.doc.state,
         by: String(m.doc.by || "").slice(0, 40),

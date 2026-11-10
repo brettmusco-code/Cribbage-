@@ -774,6 +774,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   var KEY = "cribbage-board-v1";
   var HKEY = "cribbage-history-v1";
+  var MINE_KEY = "cribbage-tables-mine-v1";
   var LKEY = "cribbage-live-v1";
   var MAXP = 4;
   var UNDO_CAP = 120;
@@ -806,6 +807,31 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     });
   }
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function randomToken(n) {
+    var a = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", out = "", bytes = null;
+    try { bytes = crypto.getRandomValues(new Uint8Array(n)); } catch (e) {}
+    for (var i = 0; i < n; i++) out += a[(bytes ? bytes[i] : Math.floor(Math.random() * 256)) % a.length];
+    return out;
+  }
+  // Tables this phone started. The creator id goes into the table's game so every phone can see who started it;
+  // the key never leaves this phone except to the sync server, which needs it to delete the table.
+  function mineTables() {
+    try { var m = JSON.parse(localStorage.getItem(MINE_KEY) || "{}"); return m && typeof m === "object" ? m : {}; } catch (e) { return {}; }
+  }
+  function rememberMine(name, entry) {
+    var m = mineTables(); m[name] = entry;
+    try { localStorage.setItem(MINE_KEY, JSON.stringify(m)); } catch (e) {}
+  }
+  function forgetMine(name) {
+    var m = mineTables(); if (!m[name]) return; delete m[name];
+    try { localStorage.setItem(MINE_KEY, JSON.stringify(m)); } catch (e) {}
+  }
+  // Only the phone that started a table may delete it. Tables started before creators were recorded have none.
+  function canDelete(name, creator) {
+    if (!creator) return true;
+    var m = mineTables()[name];
+    return !!(m && m.id === creator);
+  }
 
   // ---------- Game state ----------
   // A "side" is one lane on the board: a player, or a team in partners mode.
@@ -2160,7 +2186,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       name: name, players: players.slice(0, 4),
       scores: st.sides.slice(0, 4).map(function (sd) { return Math.max(0, Math.min(121, Number(sd && sd.score) || 0)); }),
       game: Number(st.game) || 1, over: st.winner !== null && st.winner !== undefined,
-      listed: st.listed !== false, devices: devices, updatedAt: Number(doc.updatedAt) || 0
+      listed: st.listed !== false, creator: typeof st.creator === "string" ? st.creator : null,
+      devices: devices, updatedAt: Number(doc.updatedAt) || 0
     };
   }
 
@@ -2258,7 +2285,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     function api(path, opts) {
       return fetch(base + path, opts).then(function (r) {
         if (r.ok) return r.json();
-        throw { code: r.status === 507 ? "quota_exceeded" : (r.status === 400 || r.status === 413) ? "invalid_argument" : "unavailable" };
+        throw { code: r.status === 507 ? "quota_exceeded" : r.status === 403 ? "not_creator" : (r.status === 400 || r.status === 413) ? "invalid_argument" : "unavailable" };
       }, function () { throw { code: "unavailable" }; });
     }
     return {
@@ -2268,7 +2295,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         c.handlers.push(h);
         return {
           close: function () { c.handlers = c.handlers.filter(function (x) { return x !== h; }); c.release(); },
-          push: function (doc) { c.send(JSON.stringify({ type: "set", doc: doc })); return Promise.resolve(); }
+          push: function (doc, owner) { c.send(JSON.stringify(owner ? { type: "set", doc: doc, owner: owner } : { type: "set", doc: doc })); return Promise.resolve(); }
         };
       },
       watchGames: function (table, onList, onErr) {
@@ -2285,7 +2312,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       },
       delGame: function (t, id) { return api(T(t) + "/games/" + encodeURIComponent(id), { method: "DELETE" }); },
       peekTable: function (name) { return api(T(name) + "/state").then(function (j) { return j.doc || null; }); },
-      deleteTable: function (name) { return api(T(name), { method: "DELETE" }); },
+      deleteTable: function (name, key) { return api(T(name), { method: "DELETE", headers: key ? { "X-Owner-Key": key } : {} }); },
       // The server keeps the list; refresh it every few seconds while it's on screen
       listTables: function (onList, onErr) {
         var alive = true, timer = null;
@@ -2520,7 +2547,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   // ---------- Live sync: the game in progress, shared by every device at the same table ----------
   var livePref = loadLivePref();
-  var liveConn = null, liveJoined = false, liveWriting = false, liveDirty = false, liveTimer = null;
+  var liveConn = null, liveJoined = false, liveWriting = false, liveDirty = false, liveTimer = null, liveOwner = null;
   var liveBadge = document.getElementById("liveBadge"), liveText = document.getElementById("liveText");
 
   function slug(s) { return String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "main"; }
@@ -2570,7 +2597,18 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           if (info && info.deleted && !first) { tableDeleted(table); return; }
           if (first) { liveJoined = true; clearTimeout(liveTimer); }
           setLive("live", "Live · " + table);
-          if (!d) { if (first) { pushLive(); toast("Started table " + table + "."); } return; }
+          if (!d) {
+            if (first) {
+              var mine = { id: randomToken(12), key: randomToken(32) };
+              rememberMine(table, mine);
+              state.creator = mine.id;
+              saveLocal();
+              liveOwner = mine.key;
+              pushLive();
+              toast("Started table " + table + ".");
+            }
+            return;
+          }
           if (d.by === clientId) return;
           if (!validState(d.state)) { if (first) pushLive(); return; }
           adoptRemote(d.state, first);
@@ -2592,8 +2630,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (liveWriting) return;
     liveWriting = true;
     liveDirty = false;
-    liveConn.push({ state: clone(state), by: clientId, updatedAt: Date.now() }).then(function () {
+    var owner = liveOwner;
+    liveConn.push({ state: clone(state), by: clientId, updatedAt: Date.now() }, owner).then(function () {
       liveWriting = false;
+      if (owner === liveOwner) liveOwner = null;
       if (liveDirty) pushLive();
     }, function (e) {
       liveWriting = false;
@@ -2854,11 +2894,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<button type="button" class="btn-ghost" id="tblLeave">Leave</button></div>' +
       '<label class="check"><input type="checkbox" id="tblListed"' + (state.listed !== false ? " checked" : "") + '>' +
       '<span>Show this table in the list<small>Turn off to keep it private. People can still join by typing its name.</small></span></label>' +
-      '<div class="tbl-del-row"><button type="button" class="btn-ghost danger' + (armedDelete === here ? " confirm" : "") + '" id="tblDelete">' +
-      (armedDelete === here ? "Delete for everyone?" : "Delete table") + '</button><p class="hint">' + deleteNote() + '</p></div>';
+      (canDelete(here, state.creator)
+        ? '<div class="tbl-del-row"><button type="button" class="btn-ghost danger' + (armedDelete === here ? " confirm" : "") + '" id="tblDelete">' +
+          (armedDelete === here ? "Delete for everyone?" : "Delete table") + '</button><p class="hint">' + deleteNote() + '</p></div>'
+        : '<p class="hint">Only the phone that started this table can delete it.</p>');
     tblHere.querySelector("strong").textContent = here;
     document.getElementById("tblLeave").addEventListener("click", leaveTable);
-    document.getElementById("tblDelete").addEventListener("click", function () { askDelete(here); });
+    var delBtn = document.getElementById("tblDelete");
+    if (delBtn) delBtn.addEventListener("click", function () { askDelete(here); });
     document.getElementById("tblListed").addEventListener("change", function () {
       state.listed = this.checked;
       commit(false);
@@ -2886,8 +2929,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       return '<li><div class="tbl-info"><div class="tbl-name">' + esc(t.name) + '</div><div class="tbl-players">' + players + '</div>' +
         '<div class="tbl-meta">' + meta.join(" · ") + '</div></div>' +
         '<div class="tbl-actions">' +
-        '<button type="button" class="tbl-del' + (delArmed ? " confirm" : "") + '" data-name="' + esc(t.name) + '" aria-label="' +
-          (delArmed ? "Tap again to delete table " : "Delete table ") + esc(t.name) + '">' + (delArmed ? "Delete?" : TRASH) + '</button>' +
+        (canDelete(t.name, t.creator)
+          ? '<button type="button" class="tbl-del' + (delArmed ? " confirm" : "") + '" data-name="' + esc(t.name) + '" aria-label="' +
+            (delArmed ? "Tap again to delete table " : "Delete table ") + esc(t.name) + '">' + (delArmed ? "Delete?" : TRASH) + '</button>'
+          : '') +
         (delArmed ? '' : '<button type="button" class="btn-solid tbl-join' + (armed ? " confirm" : "") + '" data-name="' + esc(t.name) + '">' + (armed ? "Replace my game?" : "Join") + '</button>') +
         '</div></li>';
     }).join("");
@@ -2915,6 +2960,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function joinTable(name) {
     livePref = { on: true, table: slug(name) };
+    delete state.creator;
     saveLivePref();
     closeTables();
     getBackend().then(function () { startLive(); startHistory(); });
@@ -2938,31 +2984,38 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     clearTimeout(delTimer);
     deleteTable(name);
   }
-  function deleteTable(name) {
-    var here = atTable() === name;
-    if (here) {
-      livePref = { on: false, table: name };
-      saveLivePref();
-      stopLive();
-      startHistory();
-    }
-    tables = (tables || []).filter(function (t) { return t.name !== name; });
-    renderTables();
-    getBackend().then(function (b) { return b.deleteTable(name); }).then(function () {
-      toast("Deleted table " + name + "." + (here ? " This game stays on your phone." : ""));
-    }, function () {
-      toast("Couldn't delete table " + name + ". Check your connection and try again.");
-    });
-  }
-  // Someone else deleted the table this phone is at
-  function tableDeleted(name) {
-    if (!livePref.on || livePref.table !== name) return;
+  var deleting = null;
+  function leaveLive(name) {
     livePref = { on: false, table: name };
     saveLivePref();
     stopLive();
     startHistory();
+  }
+  function deleteTable(name) {
+    var mine = mineTables()[name], here = atTable() === name;
+    deleting = name;
+    getBackend().then(function (b) { return b.deleteTable(name, mine && mine.key); }).then(function () {
+      // The server's notice may already have taken this phone off the table
+      if (atTable() === name) leaveLive(name);
+      deleting = null;
+      forgetMine(name);
+      tables = (tables || []).filter(function (t) { return t.name !== name; });
+      if (tablesDlg.open) renderTables();
+      toast("Deleted table " + name + "." + (here ? " This game stays on your phone." : ""));
+    }, function (e) {
+      deleting = null;
+      if (tablesDlg.open) renderTables();
+      toast(e && e.code === "not_creator" ? "Only the phone that started table " + name + " can delete it."
+        : "Couldn't delete table " + name + ". Check your connection and try again.");
+    });
+  }
+  // The table this phone is at was deleted (by its creator, or by this phone a moment ago)
+  function tableDeleted(name) {
+    if (!livePref.on || livePref.table !== name) return;
+    leaveLive(name);
+    forgetMine(name);
     if (tablesDlg.open) renderTables();
-    toast("Table " + name + " was deleted. This game stays on your phone.");
+    if (deleting !== name) toast("Table " + name + " was deleted. This game stays on your phone.");
   }
 
   function leaveTable() {

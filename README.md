@@ -51,7 +51,7 @@ Tap **Play live** at the top of the app.
 - At a table, everyone sees and scores the same game on their own phone, and finished games are shared with the table.
 - **Show this table in the list** is on for new tables. Turn it off to keep a table private; people can still join by typing its name.
 - If this phone has a game of its own (not at a table), joining asks first, because the table's game replaces it.
-- **Delete a table** with **Delete table** (for the one you're at) or the trash button beside any table in the list. It asks for a second tap, then removes the table, its game and its shared history for everyone. Phones at the table are told and keep their game; finished games stay in each phone's History.
+- **Delete a table**: only the phone that started a table can delete it, with **Delete table** (while at it) or the trash button beside it in the list. It asks for a second tap, then removes the table, its game and its shared history for everyone. Phones at the table are told and keep their game; finished games stay in each phone's History. The sync server checks a secret key that only the starting phone holds, so other phones can't delete a table even by calling the server directly. Tables started before creators were recorded can be deleted by anyone.
 
 Tables leave the list after a day without changes. This copy of the app uses the server at `https://cribbage-sync.brettmusco.workers.dev`.
 

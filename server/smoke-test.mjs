@@ -6,6 +6,7 @@ const base = (process.argv[2] || "").replace(/\/+$/, "");
 if (!base) { console.error("Usage: node smoke-test.mjs <server url>"); process.exit(2); }
 const table = "smoke-test";
 const by = "smoke-" + Date.now().toString(36);
+const ownerKey = "smoke-owner-" + crypto.randomUUID();   // this run starts the table, so it may delete it
 const fail = (msg) => { console.error("FAIL: " + msg); process.exit(1); };
 const withTimeout = (p, ms, what) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(what + " timed out")), ms))]);
 
@@ -28,7 +29,7 @@ const b = await withTimeout(connect(), 10000, "second connection");
 const first = await withTimeout(b.next(), 10000, "initial state");
 if (first.type !== "state") fail("expected the current state on connect, got " + JSON.stringify(first));
 await withTimeout(a.next(), 10000, "initial state");
-a.ws.send(JSON.stringify({ type: "set", doc: { state: { v: 2, smoke: true }, by } }));
+a.ws.send(JSON.stringify({ type: "set", doc: { state: { v: 2, smoke: true }, by }, owner: ownerKey }));
 let got;
 do { got = await withTimeout(b.next(), 10000, "live update"); } while (!(got.type === "state" && got.doc && got.doc.by === by));
 console.log("live update ok (rev " + got.doc.rev + ")");
@@ -65,8 +66,13 @@ console.log("game history ok");
 // Deleting: a connected phone is told, the game and list entry are gone, and a phone reconnecting learns of it
 const c = await withTimeout(connect(), 10000, "connection before delete");
 await withTimeout(c.next(), 10000, "state before delete");
-const delRes = await fetch(base + "/t/" + table, { method: "DELETE" });
-if (!delRes.ok) fail("deleting the table returned " + delRes.status);
+// Only the creator may delete: no key and a wrong key are refused
+const noKey = await fetch(base + "/t/" + table, { method: "DELETE" });
+if (noKey.status !== 403) fail("delete without the creator's key returned " + noKey.status + ", expected 403");
+const wrongKey = await fetch(base + "/t/" + table, { method: "DELETE", headers: { "X-Owner-Key": "not-the-owner-key-123" } });
+if (wrongKey.status !== 403) fail("delete with a wrong key returned " + wrongKey.status + ", expected 403");
+const delRes = await fetch(base + "/t/" + table, { method: "DELETE", headers: { "X-Owner-Key": ownerKey } });
+if (!delRes.ok) fail("deleting the table with the creator's key returned " + delRes.status);
 let note;
 do { note = await withTimeout(c.next(), 10000, "deleted notice"); } while (note.type !== "deleted");
 const afterDel = await (await fetch(base + "/t/" + table + "/state")).json();
@@ -76,5 +82,5 @@ const d = await withTimeout(connect(), 10000, "connection after delete");
 const onReconnect = await withTimeout(d.next(), 10000, "state after delete");
 if (!(onReconnect.type === "state" && onReconnect.doc === null && onReconnect.deleted === true)) fail("reconnecting phone not told the table was deleted: " + JSON.stringify(onReconnect));
 d.ws.close();
-console.log("delete ok");
+console.log("delete ok (creator only)");
 console.log("PASS");
