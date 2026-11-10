@@ -2,6 +2,7 @@
 //
 //   GET    /health                     → { ok: true }
 //   GET    /tables                     → { tables: [...] } tables in use that are listed, busiest first
+//   DELETE /t/<table>                  → delete the table: its game, its finished games and its list entry
 //   GET    /t/<table>/ws               → WebSocket: live game for that table
 //   GET    /t/<table>/state            → { doc } (the live game, or null)
 //   GET    /t/<table>/games            → { games: [...] } newest first
@@ -10,7 +11,9 @@
 //
 // WebSocket messages
 //   server → client  { type: "state", doc }   on connect and after every change
+//                    (on connect, `deleted: true` too if the table was deleted and not started again)
 //                    { type: "games" }        the table's history changed; re-fetch it
+//                    { type: "deleted" }      the table was just deleted
 //   client → server  { type: "set", doc: { state, by } }
 //
 // Anyone who knows a table name can read and write it, so table names act as a
@@ -120,9 +123,24 @@ export class Table extends DurableObject {
       const pair = new WebSocketPair();
       this.ctx.acceptWebSocket(pair[1]);
       const doc = (await this.ctx.storage.get("state")) || null;
-      pair[1].send(JSON.stringify({ type: "state", doc }));
+      const deleted = !doc && !!(await this.ctx.storage.get("deletedAt"));
+      pair[1].send(JSON.stringify(deleted ? { type: "state", doc, deleted } : { type: "state", doc }));
       await this.report();
       return new Response(null, { status: 101, webSocket: pair[0] });
+    }
+
+    // Delete the table: tell connected phones, then clear its game, its finished games and its list entry.
+    // A note of the deletion stays, so a phone that was offline learns of it instead of re-creating the table.
+    if (rest === "/" && req.method === "DELETE") {
+      const name = await this.tableName(url);
+      for (const ws of this.ctx.getWebSockets()) {
+        try { ws.send(JSON.stringify({ type: "deleted" })); ws.close(4000, "table deleted"); } catch {}
+      }
+      await this.ctx.storage.deleteAll();
+      if (name) await this.ctx.storage.put("name", name);
+      await this.ctx.storage.put("deletedAt", Date.now());
+      try { if (name) await lobby(this.env).remove(name); } catch {}
+      return json({ ok: true });
     }
 
     if (rest === "/state" && req.method === "GET") {
@@ -175,6 +193,7 @@ export class Table extends DurableObject {
         rev: ((prev && prev.rev) || 0) + 1,
       };
       await this.ctx.storage.put("state", doc);
+      await this.ctx.storage.delete("deletedAt");
       await this.report();
       this.broadcast({ type: "state", doc });
     } else if (m && m.type === "ping") {
@@ -204,6 +223,10 @@ export class Lobby extends DurableObject {
   async update(summary) {
     if (!summary || !TABLE_RE.test(summary.name)) return;
     await this.ctx.storage.put("t:" + summary.name, summary);
+  }
+
+  async remove(name) {
+    if (TABLE_RE.test(String(name))) await this.ctx.storage.delete("t:" + name);
   }
 
   async list() {

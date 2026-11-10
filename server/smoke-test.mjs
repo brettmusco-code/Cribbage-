@@ -1,6 +1,6 @@
 // Checks a deployed sync server end to end: health, live updates between two
 // connections on one table, the table list (listed and hidden), and saving,
-// listing and deleting a finished game. The test table ends up hidden.
+// listing and deleting a finished game, and deleting the table. The test table ends up deleted.
 // Usage: node smoke-test.mjs https://cribbage-sync.<name>.workers.dev
 const base = (process.argv[2] || "").replace(/\/+$/, "");
 if (!base) { console.error("Usage: node smoke-test.mjs <server url>"); process.exit(2); }
@@ -61,4 +61,20 @@ if (!del.ok) fail("deleting a game returned " + del.status);
 const after = await (await fetch(base + "/t/" + table + "/games")).json();
 if (after.games.some((g) => g.id === id)) fail("deleted game still listed");
 console.log("game history ok");
+
+// Deleting: a connected phone is told, the game and list entry are gone, and a phone reconnecting learns of it
+const c = await withTimeout(connect(), 10000, "connection before delete");
+await withTimeout(c.next(), 10000, "state before delete");
+const delRes = await fetch(base + "/t/" + table, { method: "DELETE" });
+if (!delRes.ok) fail("deleting the table returned " + delRes.status);
+let note;
+do { note = await withTimeout(c.next(), 10000, "deleted notice"); } while (note.type !== "deleted");
+const afterDel = await (await fetch(base + "/t/" + table + "/state")).json();
+if (afterDel.doc) fail("deleted table still has a game");
+if ((await listedTables()).some((t) => t.name === table)) fail("deleted table still listed");
+const d = await withTimeout(connect(), 10000, "connection after delete");
+const onReconnect = await withTimeout(d.next(), 10000, "state after delete");
+if (!(onReconnect.type === "state" && onReconnect.doc === null && onReconnect.deleted === true)) fail("reconnecting phone not told the table was deleted: " + JSON.stringify(onReconnect));
+d.ws.close();
+console.log("delete ok");
 console.log("PASS");

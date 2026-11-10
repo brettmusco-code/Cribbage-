@@ -570,6 +570,17 @@ dialog h3 {
 .tbl-meta { color: var(--muted); font-size: .82rem; }
 .tbl-meta .now { color: var(--accent); font-weight: 600; }
 .tbl-join { flex: none; min-height: 38px; padding: 0 14px; }
+.tbl-actions { display: flex; gap: 6px; flex: none; }
+.tbl-del {
+  flex: none; min-height: 38px; min-width: 38px; padding: 0 10px; border-radius: 10px;
+  border: 1px solid var(--line); background: transparent; color: var(--muted);
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 700;
+}
+.tbl-del svg { width: 16px; height: 16px; }
+.tbl-del.confirm, .btn-ghost.danger.confirm { background: var(--danger); color: var(--surface); border-color: var(--danger); }
+.btn-ghost.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+.tbl-del-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 2px 0 6px; }
+.tbl-del-row .hint { margin: 0; flex: 1 1 12rem; }
 .tbl-join.confirm, #tblGo.confirm { background: var(--danger); }
 
 /* Board style picker */
@@ -1415,8 +1426,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function placePegs(animate) {
     for (var p = 0; p < nSides(); p++) {
       var sd = state.sides[p], a = pegEls[p][0], b = pegEls[p][1], back;
-      // The peg already sitting on the new back position stays put; the other one leapfrogs.
-      if (a.s === sd.back && b.s === sd.back) back = a.role === "front" ? a : b;
+      // At the start, the first peg sits in the start hole nearest the track and the second behind it.
+      // Otherwise the peg already sitting on the new back position stays put and the other one leapfrogs.
+      if (sd.score === 0 && sd.back === 0) back = b;
+      else if (a.s === sd.back && b.s === sd.back) back = a.role === "back" ? a : b;
       else if (a.s === sd.back) back = a;
       else if (b.s === sd.back) back = b;
       else if (a.s === sd.score) back = b;
@@ -2106,7 +2119,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         var ref = d.collection("tables").doc(table);
         var unsub = ref.onSnapshot(function (snap) {
           if (snap.metadata.fromCache || snap.metadata.hasPendingWrites) return;
-          h.state(snap.exists ? snap.data() : null);
+          var data = snap.exists ? snap.data() : null;
+          if (data && data.deleted) h.state(null, { deleted: true });
+          else h.state(data);
         }, function () { h.error("Live sync stopped"); });
         return { close: unsub, push: function (doc) { return ref.set(doc); } };
       },
@@ -2120,6 +2135,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       peekTable: function (name) {
         return d.collection("tables").doc(name).get().then(function (snap) { return snap.exists ? snap.data() : null; });
       },
+      // A deleted table keeps a small marker, so phones still at it learn it's gone
+      deleteTable: function (name) { return d.collection("tables").doc(name).set({ deleted: true, updatedAt: Date.now() }); },
       listTables: function (onList, onErr) {
         return d.collection("tables").orderBy("updatedAt", "desc").limit(40).onSnapshot(function (snap) {
           var now = Date.now();
@@ -2154,53 +2171,90 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     // One WebSocket per table, shared by the live game and the history list. It reconnects on its own.
     function conn(table) {
       if (conns[table]) return conns[table];
-      var c = { ws: null, handlers: [], gameFns: [], pending: null, skipState: false, closed: false, retry: 0, pinger: null };
+      var c = { ws: null, handlers: [], gameFns: [], pending: null, fresh: false, closed: false, retry: 0, pinger: null, pongTimer: null, timer: null };
       conns[table] = c;
-      function later() { setTimeout(open, Math.min(20000, 1000 * Math.pow(2, c.retry++))); }
-      function open() {
+      function later() {
+        clearTimeout(c.timer);
+        c.timer = setTimeout(open, Math.min(20000, 1000 * Math.pow(2, c.retry++)));
+      }
+      // Give up on a connection (closed, gone quiet, or the phone went offline) and try again
+      function drop(ws) {
+        if (c.ws !== ws) return;
+        clearInterval(c.pinger);
+        clearTimeout(c.pongTimer);
+        c.ws = null;
+        c.fresh = false;
+        try { ws.onopen = ws.onmessage = ws.onclose = null; ws.close(); } catch (e) {}
         if (c.closed) return;
+        c.handlers.forEach(function (h) { h.error("Reconnecting…", true); });
+        later();
+      }
+      function open() {
+        clearTimeout(c.timer);
+        if (c.closed || c.ws) return;
         var ws;
         try { ws = new WebSocket(wsBase + T(table) + "/ws"); } catch (e) { later(); return; }
         c.ws = ws;
         ws.onopen = function () {
           c.retry = 0;
-          // Changes made while disconnected win over the copy the server sends on connect
-          if (c.pending) { ws.send(c.pending); c.pending = null; c.skipState = true; }
+          c.fresh = true;   // the server's first message on a connection is its copy of the table
           c.gameFns.forEach(function (fn) { fn(); });
           clearInterval(c.pinger);
-          c.pinger = setInterval(function () { if (ws.readyState === 1) ws.send('{"type":"ping"}'); }, 25000);
+          // A connection can die without closing (a phone switching networks), so expect an answer to each ping
+          c.pinger = setInterval(function () {
+            if (ws.readyState !== 1) return;
+            ws.send('{"type":"ping"}');
+            clearTimeout(c.pongTimer);
+            c.pongTimer = setTimeout(function () { drop(ws); }, 10000);
+          }, 25000);
         };
         ws.onmessage = function (ev) {
+          clearTimeout(c.pongTimer);
           var m;
           try { m = JSON.parse(ev.data); } catch (e) { return; }
           if (m.type === "state") {
-            if (c.skipState) { c.skipState = false; return; }
-            c.handlers.forEach(function (h) { h.state(m.doc || null); });
+            var fresh = c.fresh;
+            c.fresh = false;
+            if (fresh && c.pending) {
+              // Changes made while disconnected win over the server's copy, unless the table was deleted meanwhile
+              if (m.deleted) { c.pending = null; c.handlers.forEach(function (h) { h.state(null, { deleted: true }); }); }
+              else { ws.send(c.pending); c.pending = null; }
+              return;
+            }
+            c.handlers.forEach(function (h) { h.state(m.doc || null, m.deleted ? { deleted: true } : null); });
+          } else if (m.type === "deleted") {
+            c.handlers.forEach(function (h) { h.state(null, { deleted: true }); });
           } else if (m.type === "games") {
             c.gameFns.forEach(function (fn) { fn(); });
           } else if (m.type === "error") {
             c.handlers.forEach(function (h) { h.error("Not synced", true); });
           }
         };
-        ws.onclose = function () {
-          clearInterval(c.pinger);
-          c.ws = null;
-          if (c.closed) return;
-          c.handlers.forEach(function (h) { h.error("Reconnecting…", true); });
-          later();
-        };
+        ws.onclose = function () { drop(ws); };
       }
-      c.send = function (str) { if (c.ws && c.ws.readyState === 1) c.ws.send(str); else c.pending = str; };
+      c.send = function (str) { if (c.ws && c.ws.readyState === 1 && !c.fresh) c.ws.send(str); else c.pending = str; };
+      c.offline = function () { if (c.ws) drop(c.ws); };
+      c.online = function () {
+        if (c.closed || (c.ws && c.ws.readyState === 1)) return;
+        if (c.ws) { var old = c.ws; c.ws = null; try { old.onopen = old.onmessage = old.onclose = null; old.close(); } catch (e) {} }
+        c.retry = 0;
+        open();
+      };
       c.release = function () {
         if (c.handlers.length || c.gameFns.length) return;
         c.closed = true;
         clearInterval(c.pinger);
+        clearTimeout(c.pongTimer);
+        clearTimeout(c.timer);
         if (c.ws) { try { c.ws.close(); } catch (e) {} }
         delete conns[table];
       };
       open();
       return c;
     }
+    // Going offline: queue changes straight away. Back online: reconnect now rather than at the next retry.
+    window.addEventListener("offline", function () { Object.keys(conns).forEach(function (t) { conns[t].offline(); }); });
+    window.addEventListener("online", function () { Object.keys(conns).forEach(function (t) { conns[t].online(); }); });
     function api(path, opts) {
       return fetch(base + path, opts).then(function (r) {
         if (r.ok) return r.json();
@@ -2231,6 +2285,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       },
       delGame: function (t, id) { return api(T(t) + "/games/" + encodeURIComponent(id), { method: "DELETE" }); },
       peekTable: function (name) { return api(T(name) + "/state").then(function (j) { return j.doc || null; }); },
+      deleteTable: function (name) { return api(T(name), { method: "DELETE" }); },
       // The server keeps the list; refresh it every few seconds while it's on screen
       listTables: function (onList, onErr) {
         var alive = true, timer = null;
@@ -2509,8 +2564,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }, 10000);
     try {
       liveConn = backend.openTable(table, {
-        state: function (d) {
+        state: function (d, info) {
           var first = !liveJoined;
+          // The table was deleted while this phone was at it: leave, keeping the game here
+          if (info && info.deleted && !first) { tableDeleted(table); return; }
           if (first) { liveJoined = true; clearTimeout(liveTimer); }
           setLive("live", "Live · " + table);
           if (!d) { if (first) { pushLive(); toast("Started table " + table + "."); } return; }
@@ -2775,7 +2832,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   var tablesDlg = document.getElementById("tablesDlg");
   var tblList = document.getElementById("tblList");
   var tblHere = document.getElementById("tblHere");
-  var tables = null, tablesErr = false, tablesUnsub = null, armedJoin = null, armTimer = null;
+  var tables = null, tablesErr = false, tablesUnsub = null, armedJoin = null, armTimer = null, armedDelete = null, delTimer = null;
+  var TRASH = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4h11"/><path d="M6 4V2.5h4V4"/><path d="M4 4l.7 9.5h6.6L12 4"/></svg>';
 
   function ago(ms) {
     var m = Math.round((Date.now() - ms) / 60000);
@@ -2795,9 +2853,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<div class="tbl-here"><div><small>You\'re at table</small><strong></strong><small>' + phones + '</small></div>' +
       '<button type="button" class="btn-ghost" id="tblLeave">Leave</button></div>' +
       '<label class="check"><input type="checkbox" id="tblListed"' + (state.listed !== false ? " checked" : "") + '>' +
-      '<span>Show this table in the list<small>Turn off to keep it private. People can still join by typing its name.</small></span></label>';
+      '<span>Show this table in the list<small>Turn off to keep it private. People can still join by typing its name.</small></span></label>' +
+      '<div class="tbl-del-row"><button type="button" class="btn-ghost danger' + (armedDelete === here ? " confirm" : "") + '" id="tblDelete">' +
+      (armedDelete === here ? "Delete for everyone?" : "Delete table") + '</button><p class="hint">' + deleteNote() + '</p></div>';
     tblHere.querySelector("strong").textContent = here;
     document.getElementById("tblLeave").addEventListener("click", leaveTable);
+    document.getElementById("tblDelete").addEventListener("click", function () { askDelete(here); });
     document.getElementById("tblListed").addEventListener("change", function () {
       state.listed = this.checked;
       commit(false);
@@ -2821,13 +2882,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       var meta = ["Game " + t.game + (t.over ? ", finished" : "")];
       if (t.devices) meta.push('<span class="now">' + (t.devices === 1 ? "1 phone connected" : t.devices + " phones connected") + '</span>');
       meta.push(t.devices ? "updated " + ago(t.updatedAt) : ago(t.updatedAt));
-      var armed = armedJoin === t.name;
+      var armed = armedJoin === t.name, delArmed = armedDelete === t.name;
       return '<li><div class="tbl-info"><div class="tbl-name">' + esc(t.name) + '</div><div class="tbl-players">' + players + '</div>' +
         '<div class="tbl-meta">' + meta.join(" · ") + '</div></div>' +
-        '<button type="button" class="btn-solid tbl-join' + (armed ? " confirm" : "") + '" data-name="' + esc(t.name) + '">' + (armed ? "Replace my game?" : "Join") + '</button></li>';
+        '<div class="tbl-actions">' +
+        '<button type="button" class="tbl-del' + (delArmed ? " confirm" : "") + '" data-name="' + esc(t.name) + '" aria-label="' +
+          (delArmed ? "Tap again to delete table " : "Delete table ") + esc(t.name) + '">' + (delArmed ? "Delete?" : TRASH) + '</button>' +
+        (delArmed ? '' : '<button type="button" class="btn-solid tbl-join' + (armed ? " confirm" : "") + '" data-name="' + esc(t.name) + '">' + (armed ? "Replace my game?" : "Join") + '</button>') +
+        '</div></li>';
     }).join("");
     tblList.querySelectorAll(".tbl-join").forEach(function (btn) {
       btn.addEventListener("click", function () { askJoin(btn.getAttribute("data-name")); });
+    });
+    tblList.querySelectorAll(".tbl-del").forEach(function (btn) {
+      btn.addEventListener("click", function () { askDelete(btn.getAttribute("data-name")); });
     });
   }
 
@@ -2851,6 +2919,52 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     closeTables();
     getBackend().then(function () { startLive(); startHistory(); });
   }
+  function deleteNote() {
+    return backend && backend.kind === "server"
+      ? "Removes the table, its game and its shared history for everyone. Finished games stay in this phone's History."
+      : "Removes the table and its game for everyone at it. Finished games stay in History.";
+  }
+  // Deleting needs a second tap within a few seconds
+  function askDelete(name) {
+    if (armedDelete !== name) {
+      armedDelete = name;
+      armedJoin = null;
+      clearTimeout(delTimer);
+      delTimer = setTimeout(function () { armedDelete = null; if (tablesDlg.open) renderTables(); }, 4000);
+      renderTables();
+      return;
+    }
+    armedDelete = null;
+    clearTimeout(delTimer);
+    deleteTable(name);
+  }
+  function deleteTable(name) {
+    var here = atTable() === name;
+    if (here) {
+      livePref = { on: false, table: name };
+      saveLivePref();
+      stopLive();
+      startHistory();
+    }
+    tables = (tables || []).filter(function (t) { return t.name !== name; });
+    renderTables();
+    getBackend().then(function (b) { return b.deleteTable(name); }).then(function () {
+      toast("Deleted table " + name + "." + (here ? " This game stays on your phone." : ""));
+    }, function () {
+      toast("Couldn't delete table " + name + ". Check your connection and try again.");
+    });
+  }
+  // Someone else deleted the table this phone is at
+  function tableDeleted(name) {
+    if (!livePref.on || livePref.table !== name) return;
+    livePref = { on: false, table: name };
+    saveLivePref();
+    stopLive();
+    startHistory();
+    if (tablesDlg.open) renderTables();
+    toast("Table " + name + " was deleted. This game stays on your phone.");
+  }
+
   function leaveTable() {
     var was = livePref.table;
     livePref = { on: false, table: livePref.table };
@@ -2888,6 +3002,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function openTables() {
     armedJoin = null;
+    armedDelete = null;
     tablesErr = false;
     disarmForm();
     tblName.value = lastSuggestion = suggestName();
