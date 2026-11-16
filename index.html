@@ -298,7 +298,7 @@ button { cursor: pointer; }
 .score.bump { animation: bump .45s ease-out; }
 @keyframes bump { 0% { transform: scale(1); } 35% { transform: scale(1.12); color: var(--pc); } 100% { transform: scale(1); } }
 .meta { display: grid; gap: 1px; padding-bottom: 4px; color: var(--muted); font-size: .95rem; font-variant-numeric: tabular-nums; }
-.meta .last b { color: var(--ink); font-weight: 700; }
+.meta .last b, .meta .total b { color: var(--ink); font-weight: 700; }
 .progress { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--pc) 12%, var(--line)); overflow: hidden; }
 .progress i { display: block; height: 100%; width: 0; background: var(--pc); border-radius: 3px; transition: width .5s cubic-bezier(.3,.75,.2,1); }
 
@@ -851,7 +851,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       v: 2, mode: mode, count: count,
       names: (names || DEFAULT_NAMES).slice(0, MAXP),
       guided: guided !== false,
-      sides: sides, wins: wins,
+      sides: sides, wins: wins, matchPoints: wins.map(function () { return 0; }),
       moves: [], undo: [],
       dealer: 0, phase: "peg", step: 0, hand: 1,
       winner: null, game: 1, recordId: null, rev: 0
@@ -1563,7 +1563,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           '</div>' + scorers +
           '<div class="score-row">' +
             '<span class="score" aria-live="polite">0</span>' +
-            '<div class="meta"><span class="togo"></span><span class="last"></span></div>' +
+            '<div class="meta"><span class="togo"></span><span class="last"></span><span class="total" hidden></span></div>' +
           '</div>' +
           '<div class="progress" aria-hidden="true"><i></i></div>' +
           '<div class="quick">' +
@@ -1616,6 +1616,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           score: card.querySelector(".score"),
           togo: card.querySelector(".togo"),
           last: card.querySelector(".last"),
+          total: card.querySelector(".total"),
           bar: card.querySelector(".progress i"),
           who: card.querySelectorAll(".who"),
           buttons: card.querySelectorAll("button.q, form button, form input")
@@ -1642,6 +1643,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       c.score.textContent = sd.score;
       c.togo.textContent = sd.score >= 121 ? "Winner" : (121 - sd.score) + " to go";
       c.last.innerHTML = sd.last ? "Last <b>+" + sd.last + "</b>" : "&nbsp;";
+      c.total.hidden = !finishedGames();
+      if (!c.total.hidden) c.total.innerHTML = "Match <b>" + runningTotal(s) + "</b>";
       c.bar.style.width = (Math.min(sd.score, 121) / 121 * 100) + "%";
       var isTurn = !!cur && sideOf(cur.p) === s;
       c.card.classList.toggle("turn", isTurn);
@@ -1750,7 +1753,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // ---------- Actions ----------
   function snapshot() {
     return {
-      sides: clone(state.sides), wins: state.wins.slice(), dealer: state.dealer, phase: state.phase,
+      sides: clone(state.sides), wins: state.wins.slice(), matchPoints: state.matchPoints ? state.matchPoints.slice() : null, dealer: state.dealer, phase: state.phase,
       step: state.step, hand: state.hand, winner: state.winner, recordId: state.recordId, movesLen: state.moves.length
     };
   }
@@ -1799,6 +1802,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     state.moves.push({ p: p, s: side, n: n, k: k, to: sd.score });
     var justWon = sd.score >= 121;
     if (sd.score >= 121) {
+      var base = matchBase();
+      state.matchPoints = base.map(function (v, i) { return v + state.sides[i].score; });
       state.winner = side;
       state.wins[side] = (state.wins[side] || 0) + 1;
       var rec = buildRecord();
@@ -1831,9 +1836,27 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!snap) return;
     if (state.winner !== null && snap.winner === null && state.recordId) deleteGame(state.recordId);
     state.sides = snap.sides; state.wins = snap.wins; state.dealer = snap.dealer; state.phase = snap.phase;
+    if (snap.matchPoints) state.matchPoints = snap.matchPoints; else delete state.matchPoints;
     state.step = snap.step; state.hand = snap.hand; state.winner = snap.winner; state.recordId = snap.recordId;
     state.moves.length = Math.min(state.moves.length, snap.movesLen);
     commit(true);
+  }
+
+  // Match totals: final scores of every finished game in the match, plus the game in progress.
+  // Abandoned games don't count. Matches from before totals were kept are filled in from History.
+  function finishedGames() { return state.wins.reduce(function (a, w) { return a + (w || 0); }, 0); }
+  function matchBase() {
+    var n = nSides();
+    if (Array.isArray(state.matchPoints) && state.matchPoints.length === n) return state.matchPoints.slice();
+    var base = [], want = finishedGames(), names = [], s;
+    for (s = 0; s < n; s++) { base.push(0); names.push(sideName(s)); }
+    (games || []).filter(function (g) {
+      return g.sides.length === n && g.sides.every(function (sd, i) { return sd.name === names[i]; });
+    }).slice(0, want).forEach(function (g) { g.sides.forEach(function (sd, i) { base[i] += sd.score || 0; }); });
+    return base;
+  }
+  function runningTotal(side) {
+    return matchBase()[side] + (state.winner === null ? state.sides[side].score : 0);
   }
 
   // Game N means N-1 games have been finished; games abandoned with New game don't count
@@ -2502,6 +2525,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
 
   function renderHistory() {
+    // A match from before totals were kept fills its totals in from History, so redraw the cards once it loads
+    if (state && cards.length && !Array.isArray(state.matchPoints)) renderCards();
     var root = document.getElementById("histBody");
     document.getElementById("histCount").textContent = games.length ? String(games.length) : "";
     if (!games.length) {
