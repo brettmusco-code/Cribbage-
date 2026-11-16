@@ -22,7 +22,13 @@ function connect() {
 
 const health = await (await fetch(base + "/health")).json();
 if (!health.ok) fail("health check returned " + JSON.stringify(health));
-console.log("health ok");
+console.log("health ok (hand scanning " + (health.scan ? "on" : "off") + ")");
+
+// Hand scanning: a bad request is turned away before it reaches Claude, so this costs nothing
+const badScan = await fetch(base + "/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+const badScanBody = await badScan.json();
+if (health.scan ? badScan.status !== 400 : badScan.status !== 503) fail("scan check returned " + badScan.status + " " + JSON.stringify(badScanBody));
+console.log("scan route ok");
 
 const a = await withTimeout(connect(), 10000, "first connection");
 const b = await withTimeout(connect(), 10000, "second connection");

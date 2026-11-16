@@ -338,6 +338,84 @@ button { cursor: pointer; }
 .err { margin: -4px 0 0; color: var(--danger); font-size: .9rem; }
 .err:empty { display: none; }
 
+/* Scan a hand */
+.scan-btn {
+  display: inline-flex; align-items: center; gap: 5px; flex: none;
+  height: 32px; padding: 0 10px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--pc) 32%, var(--line));
+  background: color-mix(in srgb, var(--pc) 9%, var(--surface));
+  color: var(--ink); font-weight: 600; font-size: .9rem; touch-action: manipulation;
+}
+.scan-btn[hidden] { display: none; }
+.score-row .scan-btn { margin-left: auto; align-self: center; }
+.scan-btn svg { width: 18px; height: 18px; flex: none; }
+.scan-btn:disabled { opacity: .4; cursor: default; }
+.players.over .scan-btn { display: none; }
+.scan-view {
+  position: relative; margin: 12px 0 8px; border-radius: 12px; overflow: hidden;
+  background: #0b120e; aspect-ratio: 4 / 3; display: grid; place-items: center;
+}
+.scan-view video, .scan-view img { width: 100%; height: 100%; object-fit: cover; display: block; grid-area: 1 / 1; }
+.scan-view video[hidden], .scan-view img[hidden] { display: none; }
+.scan-view.reading img { opacity: .45; }
+.scan-guide {
+  grid-area: 1 / 1; align-self: stretch; justify-self: stretch; pointer-events: none;
+  display: grid; grid-template-rows: auto auto; align-content: center; justify-items: center; gap: 8%;
+  padding: 6%;
+}
+.scan-guide .row { display: flex; gap: 4%; justify-content: center; width: 100%; }
+.scan-guide i {
+  display: block; width: 15%; aspect-ratio: 5 / 7; border-radius: 6px;
+  border: 2px dashed rgba(255,255,255,.75); box-shadow: 0 0 0 1px rgba(0,0,0,.25);
+}
+.scan-guide .cut i { border-color: #f2d27a; }
+.scan-guide b {
+  font-family: var(--font-num); font-weight: 600; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase;
+  color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.6);
+}
+.scan-guide[hidden] { display: none; }
+.scan-empty { grid-area: 1 / 1; color: #c9d6cd; text-align: center; padding: 16px; display: grid; gap: 8px; justify-items: center; font-size: .95rem; }
+.scan-empty svg { width: 40px; height: 40px; opacity: .8; }
+.scan-empty[hidden] { display: none; }
+.scan-status {
+  grid-area: 1 / 1; align-self: end; margin: 0 0 12px; padding: 6px 12px; border-radius: 999px;
+  background: rgba(0,0,0,.6); color: #fff; font-size: .92rem;
+}
+.scan-status:empty { display: none; }
+.scan-status .spin {
+  display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px;
+  border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.scan-cards { display: flex; gap: 6px; align-items: flex-end; flex-wrap: wrap; margin: 12px 0 10px; }
+.pc {
+  width: 46px; height: 64px; border-radius: 7px; border: 1px solid var(--line); background: #fff; color: #1b2620;
+  display: grid; place-content: center; text-align: center; line-height: 1; box-shadow: 0 1px 2px rgba(0,0,0,.12);
+  font-family: var(--font-num); font-weight: 700; font-size: 1.35rem;
+}
+.pc .st { font-size: 1.15rem; margin-top: 2px; }
+.pc.red { color: #c0282a; }
+.pc-cut { margin-left: 10px; display: grid; gap: 3px; justify-items: center; }
+.pc-cut small, .pc-hand small {
+  font-family: var(--font-num); font-weight: 600; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+}
+.pc-hand { display: grid; gap: 3px; }
+.pc-hand > div { display: flex; gap: 6px; }
+.pc.missing { background: transparent; border-style: dashed; color: var(--muted); font-size: 1rem; }
+.scan-break { list-style: none; margin: 0; padding: 0; }
+.scan-break li { display: flex; gap: 10px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); }
+.scan-break li span { flex: 1 1 auto; min-width: 0; }
+.scan-break li small { display: block; color: var(--muted); font-size: .82rem; }
+.scan-break li b { font-family: var(--font-num); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.scan-total { display: flex; align-items: baseline; justify-content: space-between; padding: 10px 0 0; border-top: 2px solid var(--ink); }
+.scan-total b { font-family: var(--font-num); font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.scan-kind { margin-top: 2px; }
+.scan-view[hidden], .scan-total[hidden] { display: none; }
+@media (max-width: 759px) {
+  .pairs .scan-btn { height: 32px; padding: 0 7px; }
+  .pairs .scan-btn .lbl { display: none; }
+}
+
 /* Phones: 2 sides side by side, 4 in a 2×2 box, 3 stacked */
 @media (max-width: 759px) {
   .players.n3 .card { padding: 12px; gap: 10px; }
@@ -753,6 +831,41 @@ dialog h3 {
   </form>
   <p class="hint" id="tblNewHint" style="margin-top: 6px">A new name starts a table and brings your current game. The name of a hidden table joins it.</p>
   <div class="dlg-actions"><button type="button" class="btn-solid" id="tblClose" autofocus>Done</button></div>
+</dialog>
+
+<dialog id="scanDlg" aria-labelledby="scanTitle">
+  <h2 id="scanTitle">Scan a hand</h2>
+  <div class="seg scan-kind" role="radiogroup" aria-label="What's being counted">
+    <label><input type="radio" name="scanKind" value="hand" checked><span>Hand</span></label>
+    <label><input type="radio" name="scanKind" value="crib"><span>Crib</span></label>
+  </div>
+  <div class="scan-view" id="scanView">
+    <video id="scanVideo" playsinline muted autoplay hidden></video>
+    <img id="scanShot" alt="The photo being read" hidden>
+    <div class="scan-empty" id="scanEmpty" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      <span>Tap <b>Take photo</b> to open the camera.</span>
+    </div>
+    <div class="scan-guide" id="scanGuide" aria-hidden="true">
+      <div class="row cut"><i></i></div>
+      <div class="row"><i></i><i></i><i></i><i></i></div>
+    </div>
+    <p class="scan-status" id="scanStatus" aria-live="polite"></p>
+  </div>
+  <p class="hint" id="scanTip">Lay the four cards in a row with the cut card above them, corners showing.</p>
+  <div id="scanResult" hidden>
+    <div class="scan-cards" id="scanCards"></div>
+    <p class="note" id="scanNote"></p>
+    <ul class="scan-break" id="scanBreak"></ul>
+    <div class="scan-total" id="scanTotalRow"><span id="scanTotalLbl">Total</span><b id="scanTotal">0</b></div>
+  </div>
+  <p class="hint" style="margin-top: 10px">The photo isn't saved. It's sent to Claude to read the cards, then thrown away.</p>
+  <input type="file" id="scanFile" accept="image/*" capture="environment" hidden>
+  <div class="dlg-actions">
+    <button type="button" class="btn-ghost left" id="scanCancel">Cancel</button>
+    <button type="button" class="btn-ghost" id="scanRetake" hidden>Retake</button>
+    <button type="button" class="btn-solid" id="scanGo">Take photo</button>
+  </div>
 </dialog>
 
 <dialog id="gameDlg" class="wide" aria-labelledby="gdTitle">
@@ -1564,6 +1677,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           '<div class="score-row">' +
             '<span class="score" aria-live="polite">0</span>' +
             '<div class="meta"><span class="togo"></span><span class="last"></span><span class="total" hidden></span></div>' +
+            '<button type="button" class="scan-btn" hidden aria-label="Scan the cards to count a hand">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' +
+              '<span class="lbl">Scan</span>' +
+            '</button>' +
           '</div>' +
           '<div class="progress" aria-hidden="true"><i></i></div>' +
           '<div class="quick">' +
@@ -1603,6 +1720,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         });
         input.addEventListener("input", function () { err.textContent = ""; });
         card.querySelector(".name").addEventListener("click", openSetup);
+        card.querySelector(".scan-btn").addEventListener("click", function () { openScan(s); });
         card.querySelectorAll(".who").forEach(function (b) {
           b.addEventListener("click", function () { scorerSel[s] = Number(b.getAttribute("data-p")); renderCards(); });
         });
@@ -1619,7 +1737,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           total: card.querySelector(".total"),
           bar: card.querySelector(".progress i"),
           who: card.querySelectorAll(".who"),
-          buttons: card.querySelectorAll("button.q, form button, form input")
+          scan: card.querySelector(".scan-btn"),
+          buttons: card.querySelectorAll("button.q, form button, form input, .scan-btn")
         });
       })(s);
     }
@@ -1635,6 +1754,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       var sd = state.sides[s];
       c.name.textContent = sideName(s);
       c.chip.hidden = dealerSide !== s;
+      c.scan.hidden = !scanOn;
       c.chip.innerHTML = state.mode === "partners"
         ? '<span class="long">' + esc(pname(state.dealer)) + ' deals · </span>crib'
         : '<span class="long">Dealer · </span>crib';
@@ -2842,6 +2962,393 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   document.addEventListener("pointerdown", keepAwake);
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible" && state.moves.length) keepAwake(); });
 
+  // ---------- Scan a hand ----------
+  // A photo of four cards and the cut is read by Claude (on claude.ai through the page's own
+  // Claude access, in the installed app through the sync server), then scored here.
+  // The photo only lives in memory while the dialog is open; nothing is saved.
+  var CARD_RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+  var SUIT_SYM = { S: "♠", H: "♥", D: "♦", C: "♣" };
+  var RANK_PLURAL = { A: "Aces", J: "Jacks", Q: "Queens", K: "Kings" };
+  var SCAN_PROMPT = "This photo is from a game of cribbage. It should show five playing cards: a four-card hand (or crib) and the cut card (the starter), which is set apart from the other four — usually above, below or beside them, or turned a different way.\n\n" +
+    "Read each card's rank and suit from its corner index and pips. Write each card as rank then suit: ranks A 2 3 4 5 6 7 8 9 10 J Q K, suits S (spades) H (hearts) D (diamonds) C (clubs). For example \"10H\", \"QS\", \"AD\".\n\n" +
+    "Put the four hand cards in \"hand\" and the cut card in \"cut\". If you can't tell which card is the cut, use your best guess and say so in \"note\". If a card is hidden, blurred, cut off or you aren't sure of it, leave it out rather than guessing, and say which in \"note\". If there aren't five cards, list the ones you can read and say what's wrong in \"note\". Keep \"note\" to one short sentence, or an empty string when everything is clear.\n\n" +
+    "Reply with only a JSON object: {\"hand\": [\"5H\", \"5C\", \"JS\", \"6D\"], \"cut\": \"5S\", \"note\": \"\"}";
+
+  function parseCard(code) {
+    var m = /^(A|[2-9]|10|J|Q|K)([SHDC])$/.exec(String(code || "").toUpperCase().replace(/^T/, "10"));
+    return m ? { code: m[1] + m[2], rank: m[1], r: CARD_RANKS.indexOf(m[1]) + 1, s: m[2] } : null;
+  }
+  function cardText(c) { return c.rank + SUIT_SYM[c.s]; }
+  function rankPlural(rank) { return RANK_PLURAL[rank] || rank + "s"; }
+
+  // Keep only real, distinct cards
+  function cleanReading(raw) {
+    var seen = {};
+    function take(code) {
+      var c = parseCard(code);
+      if (!c || seen[c.code]) return null;
+      seen[c.code] = true;
+      return c;
+    }
+    var cut = take(raw && raw.cut);
+    var hand = (Array.isArray(raw && raw.hand) ? raw.hand : []).map(take).filter(Boolean).slice(0, 4);
+    var note = raw && typeof raw.note === "string" ? raw.note.slice(0, 200) : "";
+    return { hand: hand, cut: cut, note: note };
+  }
+
+  // Score a four-card hand with the cut. In the crib a flush counts only if the cut matches too.
+  function scoreHand(hand, cut, crib) {
+    var all = hand.concat([cut]);
+    var items = [];
+    var fifteens = [];
+    for (var mask = 1; mask < 32; mask++) {
+      var sum = 0, pick = [];
+      for (var i = 0; i < 5; i++) if (mask & (1 << i)) { sum += Math.min(all[i].r, 10); pick.push(all[i]); }
+      if (sum === 15) fifteens.push(pick.map(cardText).join(" "));
+    }
+    if (fifteens.length) {
+      items.push({ label: fifteens.length === 1 ? "Fifteen" : fifteens.length + " fifteens", detail: fifteens.length <= 4 ? fifteens.join(" · ") : "", pts: fifteens.length * 2 });
+    }
+    var count = {};
+    all.forEach(function (c) { count[c.r] = (count[c.r] || 0) + 1; });
+    Object.keys(count).map(Number).sort(function (a, b) { return a - b; }).forEach(function (r) {
+      var n = count[r];
+      if (n < 2) return;
+      var rank = CARD_RANKS[r - 1];
+      items.push({ label: n === 2 ? "Pair of " + rankPlural(rank) : n === 3 ? "Three " + rankPlural(rank) : "Four " + rankPlural(rank), pts: n * (n - 1) });
+    });
+    // Runs: the longest stretch of ranks in a row, once for every way to pick one card of each rank
+    var best = null;
+    for (var lo = 1; lo <= 13; lo++) {
+      if (!count[lo]) continue;
+      var hi = lo, ways = 1;
+      while (count[hi]) { ways *= count[hi]; hi++; }
+      var len = hi - lo;
+      if (len >= 3 && (!best || len > best.len)) best = { len: len, ways: ways, lo: lo };
+    }
+    if (best) {
+      var kind = best.ways === 1 ? "Run of " : best.ways === 2 ? "Double run of " : best.ways === 3 ? "Triple run of " : "Double double run of ";
+      var span = CARD_RANKS[best.lo - 1] + "–" + CARD_RANKS[best.lo + best.len - 2];
+      items.push({ label: kind + best.len, detail: span, pts: best.len * best.ways });
+    }
+    var suit = hand[0].s;
+    if (hand.every(function (c) { return c.s === suit; })) {
+      if (cut.s === suit) items.push({ label: "Flush of 5", detail: SUIT_SYM[suit], pts: 5 });
+      else if (!crib) items.push({ label: "Flush of 4", detail: SUIT_SYM[suit], pts: 4 });
+    }
+    hand.forEach(function (c) {
+      if (c.rank === "J" && c.s === cut.s) items.push({ label: "His nobs", detail: "Jack of the cut's suit", pts: 1 });
+    });
+    return { items: items, total: items.reduce(function (a, it) { return a + it.pts; }, 0) };
+  }
+
+  // Which way this view can read photos: a function (blob, signal) → reading, or null
+  var scanReaderPromise = null;
+  var scanOn = false;
+  function scanError(code) { var e = new Error(code || "scan_failed"); e.code = code || "scan_failed"; return e; }
+  function getScanReader() {
+    if (scanReaderPromise) return scanReaderPromise;
+    var c = window.claude;
+    if (c && typeof c.use === "function") {
+      scanReaderPromise = c.use("sample").then(function (sample) {
+        if (!sample || typeof sample.json !== "function") return null;
+        return sample.limits().then(function (lim) {
+          if (!lim || !lim.images) return null;
+          return function (blob, signal) {
+            return sample.json(SCAN_PROMPT, { images: [blob], signal: signal }).then(cleanReading, function (e) {
+              throw scanError(e && e.code);
+            });
+          };
+        });
+      }).catch(function () { return null; });
+    } else if (SYNC_URL) {
+      scanReaderPromise = fetch(SYNC_URL + "/health", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (h) {
+        if (!h || !h.scan) return null;
+        return function (blob, signal) {
+          return blobToBase64(blob).then(function (b64) {
+            return fetch(SYNC_URL + "/scan", {
+              method: "POST", signal: signal,
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ image: b64, type: blob.type || "image/jpeg" })
+            });
+          }).then(function (r) {
+            return r.json().catch(function () { return {}; }).then(function (d) {
+              if (!r.ok) throw scanError(d && d.error);
+              return cleanReading(d);
+            });
+          }, function (e) {
+            throw scanError(e && e.name === "AbortError" ? "cancelled" : "offline");
+          });
+        };
+      }).catch(function () { scanReaderPromise = null; return null; });
+    } else {
+      scanReaderPromise = Promise.resolve(null);
+    }
+    return scanReaderPromise;
+  }
+  function checkScan() {
+    getScanReader().then(function (reader) {
+      scanOn = !!reader;
+      cards.forEach(function (c) { if (c.scan) c.scan.hidden = !scanOn; });
+    });
+  }
+  function scanMessage(code) {
+    switch (code) {
+      case "not_granted": case "sampling_disabled": case "not_declared": case "capability_disabled":
+      case "capability_removed": case "images_unavailable": case "scan_not_configured":
+        return "Scanning isn't available here.";
+      case "rate_limited": case "busy": case "too_many_scans":
+        return "Too many scans right now. Try again in a little while.";
+      case "session_expired": return "Sign in to Claude again, then try another scan.";
+      case "offline": return "Couldn't reach the scanner. Check your connection and try again.";
+      case "refused": case "unreadable": case "empty_completion": case "invalid_json": case "image_rejected": case "bad_image":
+        return "Couldn't read the cards in that photo. Try another one.";
+      default: return "Something went wrong reading the cards. Try again.";
+    }
+  }
+
+  function blobToBase64(blob) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onload = function () { resolve(String(fr.result).replace(/^data:[^,]*,/, "")); };
+      fr.onerror = function () { reject(fr.error); };
+      fr.readAsDataURL(blob);
+    });
+  }
+  // Draw a camera frame or a picked photo at a size Claude reads well, as JPEG
+  function photoBlob(source, w, h) {
+    var scale = Math.min(1, 1568 / Math.max(w, h));
+    var cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.round(w * scale));
+    cv.height = Math.max(1, Math.round(h * scale));
+    cv.getContext("2d").drawImage(source, 0, 0, cv.width, cv.height);
+    return new Promise(function (resolve, reject) {
+      cv.toBlob(function (b) { b ? resolve(b) : reject(new Error("no_image")); }, "image/jpeg", 0.85);
+    });
+  }
+  function fileBlob(file) {
+    if (window.createImageBitmap) {
+      return createImageBitmap(file).then(function (bmp) {
+        return photoBlob(bmp, bmp.width, bmp.height).then(function (b) { if (bmp.close) bmp.close(); return b; });
+      }).catch(function () { return imgFileBlob(file); });
+    }
+    return imgFileBlob(file);
+  }
+  function imgFileBlob(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        photoBlob(img, img.naturalWidth, img.naturalHeight).then(resolve, reject).then(function () { URL.revokeObjectURL(url); });
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("no_image")); };
+      img.src = url;
+    });
+  }
+
+  var scanDlg = document.getElementById("scanDlg");
+  var scanEl = {
+    title: document.getElementById("scanTitle"),
+    view: document.getElementById("scanView"),
+    video: document.getElementById("scanVideo"),
+    shot: document.getElementById("scanShot"),
+    empty: document.getElementById("scanEmpty"),
+    guide: document.getElementById("scanGuide"),
+    status: document.getElementById("scanStatus"),
+    tip: document.getElementById("scanTip"),
+    result: document.getElementById("scanResult"),
+    cards: document.getElementById("scanCards"),
+    note: document.getElementById("scanNote"),
+    brk: document.getElementById("scanBreak"),
+    totalRow: document.getElementById("scanTotalRow"),
+    total: document.getElementById("scanTotal"),
+    file: document.getElementById("scanFile"),
+    cancel: document.getElementById("scanCancel"),
+    retake: document.getElementById("scanRetake"),
+    go: document.getElementById("scanGo")
+  };
+  var scan = { side: 0, stream: null, ctl: null, shotUrl: null, reading: null, phase: "idle", scored: null };
+
+  function scanKind() {
+    var r = scanDlg.querySelector('input[name="scanKind"]:checked');
+    return r ? r.value : "hand";
+  }
+  function stopCamera() {
+    if (scan.stream) scan.stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+    scan.stream = null;
+    scanEl.video.srcObject = null;
+  }
+  function clearShot() {
+    if (scan.shotUrl) URL.revokeObjectURL(scan.shotUrl);
+    scan.shotUrl = null;
+    scanEl.shot.removeAttribute("src");
+  }
+  function scanPhase(phase, status) {
+    scan.phase = phase;
+    var live = phase === "camera" && !!scan.stream;
+    scanEl.view.hidden = phase === "result";
+    scanEl.view.classList.toggle("reading", phase === "reading");
+    scanEl.video.hidden = !live;
+    scanEl.shot.hidden = !(phase === "reading" || phase === "error") || !scan.shotUrl;
+    scanEl.empty.hidden = !(phase === "camera" && !scan.stream);
+    scanEl.guide.hidden = !live;
+    scanEl.status.innerHTML = status || "";
+    scanEl.tip.hidden = phase === "result";
+    scanEl.result.hidden = phase !== "result";
+    scanEl.retake.hidden = !(phase === "result" || phase === "error");
+    scanEl.go.hidden = phase === "error" || (phase === "result" && !canAddScan());
+    scanEl.go.disabled = phase === "reading" || (phase === "camera" && !!status);   // status = camera still starting
+    scanEl.cancel.textContent = phase === "result" ? "Close" : "Cancel";
+    if (phase === "camera" || phase === "reading") scanEl.go.textContent = "Take photo";
+  }
+  function canAddScan() {
+    if (state.winner !== null) return false;
+    var cur = currentCount();
+    return !cur || sideOf(cur.p) === scan.side;
+  }
+
+  function startCamera() {
+    stopCamera();
+    var md = navigator.mediaDevices;
+    if (!md || typeof md.getUserMedia !== "function") { scanPhase("camera"); return; }
+    scanPhase("camera", '<span class="spin"></span>Starting the camera…');
+    md.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1440 } } })
+      .then(function (stream) {
+        if (!scanDlg.open || scan.phase !== "camera") { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
+        scan.stream = stream;
+        scanEl.video.srcObject = stream;
+        var p = scanEl.video.play();
+        if (p && p.catch) p.catch(function () {});
+        var ready = function () { if (scan.stream === stream && scan.phase === "camera") scanPhase("camera"); };
+        if (scanEl.video.readyState >= 2 && scanEl.video.videoWidth) ready();
+        else scanEl.video.addEventListener("loadeddata", ready, { once: true });
+      })
+      .catch(function () { if (scan.phase === "camera") scanPhase("camera"); });
+  }
+
+  function openScan(side) {
+    scan.side = side;
+    scan.reading = null;
+    clearShot();
+    var cur = currentCount();
+    var crib = !!cur && cur.k === "crib" && sideOf(cur.p) === side;
+    scanDlg.querySelectorAll('input[name="scanKind"]').forEach(function (r) { r.checked = r.value === (crib ? "crib" : "hand"); });
+    scanEl.title.textContent = "Scan " + sideName(side) + "’s cards";
+    try { scanDlg.showModal(); } catch (e) { scanDlg.setAttribute("open", ""); }
+    startCamera();
+  }
+  function closeScan() {
+    if (scan.ctl) scan.ctl.abort();
+    scan.ctl = null;
+    stopCamera();
+    clearShot();
+    scan.reading = null;
+    scan.phase = "idle";
+    try { scanDlg.close(); } catch (e) { scanDlg.removeAttribute("open"); }
+  }
+
+  function takePhoto() {
+    var v = scanEl.video;
+    if (scan.stream && !v.videoWidth) return;   // the camera has no picture yet
+    if (scan.stream) {
+      photoBlob(v, v.videoWidth, v.videoHeight).then(readPhoto, function () { scanPhase("error", scanMessage("bad_image")); });
+    } else {
+      scanEl.file.value = "";
+      scanEl.file.click();
+    }
+  }
+  scanEl.file.addEventListener("change", function () {
+    var f = scanEl.file.files && scanEl.file.files[0];
+    scanEl.file.value = "";
+    if (!f || !scanDlg.open) return;
+    fileBlob(f).then(readPhoto, function () { scanPhase("error", scanMessage("bad_image")); });
+  });
+
+  function readPhoto(blob) {
+    stopCamera();
+    clearShot();
+    scan.shotUrl = URL.createObjectURL(blob);
+    scanEl.shot.src = scan.shotUrl;
+    scanPhase("reading", '<span class="spin"></span>Reading the cards…');
+    var ctl = scan.ctl = new AbortController();
+    getScanReader().then(function (reader) {
+      if (!reader) throw scanError("scan_not_configured");
+      return reader(blob, ctl.signal);
+    }).then(function (reading) {
+      if (scan.ctl !== ctl) return;
+      scan.ctl = null;
+      clearShot();          // done with the photo
+      scan.reading = reading;
+      showReading();
+    }, function (e) {
+      if (scan.ctl !== ctl) return;
+      scan.ctl = null;
+      var code = e && e.code;
+      if (code === "cancelled") return;
+      if (scanMessage(code) === "Scanning isn't available here.") { scanOn = false; checkScanButtons(); }
+      scanPhase("error", scanMessage(code));
+    });
+  }
+  function checkScanButtons() { cards.forEach(function (c) { if (c.scan) c.scan.hidden = !scanOn; }); }
+
+  function tile(c) {
+    if (!c) return '<div class="pc missing" aria-label="Not read">?</div>';
+    var red = c.s === "H" || c.s === "D";
+    return '<div class="pc' + (red ? " red" : "") + '" aria-label="' + esc(c.rank + " of " + { S: "spades", H: "hearts", D: "diamonds", C: "clubs" }[c.s]) + '">' +
+      '<span>' + esc(c.rank) + '</span><span class="st">' + SUIT_SYM[c.s] + '</span></div>';
+  }
+  function showReading() {
+    var rd = scan.reading;
+    if (!rd) return;
+    var slots = [0, 1, 2, 3].map(function (i) { return tile(rd.hand[i]); }).join("");
+    scanEl.cards.innerHTML =
+      '<div class="pc-hand"><small>' + (scanKind() === "crib" ? "Crib" : "Hand") + '</small><div>' + slots + '</div></div>' +
+      '<div class="pc-cut"><small>Cut</small>' + tile(rd.cut) + '</div>';
+    var complete = rd.hand.length === 4 && !!rd.cut;
+    scanEl.note.textContent = complete ? (rd.note || "") : (rd.note || "Couldn't read all five cards.") + " Retake the photo with every corner showing.";
+    scanEl.note.style.color = complete ? "var(--muted)" : "";
+    if (!complete) {
+      scan.scored = null;
+      scanEl.brk.innerHTML = "";
+      scanEl.totalRow.hidden = true;
+      scanPhase("result");
+      scanEl.go.hidden = true;
+      return;
+    }
+    var sc = scan.scored = scoreHand(rd.hand, rd.cut, scanKind() === "crib");
+    scanEl.brk.innerHTML = sc.items.length
+      ? sc.items.map(function (it) {
+          return '<li><span>' + esc(it.label) + (it.detail ? '<small>' + esc(it.detail) + '</small>' : "") + '</span><b>' + it.pts + '</b></li>';
+        }).join("")
+      : '<li><span>Nothing to count<small>A zero hand: “nineteen”</small></span><b>0</b></li>';
+    scanEl.totalRow.hidden = false;
+    scanEl.total.textContent = sc.total;
+    scanPhase("result");
+    var cur = currentCount();
+    scanEl.go.textContent = sc.total ? "Add " + sc.total : "Score 0";
+    if (!sc.total && !cur) scanEl.go.hidden = true;
+  }
+
+  scanDlg.querySelectorAll('input[name="scanKind"]').forEach(function (r) {
+    r.addEventListener("change", function () { if (scan.phase === "result") showReading(); });
+  });
+  scanEl.go.addEventListener("click", function () {
+    if (scan.phase === "camera") { takePhoto(); return; }
+    if (scan.phase === "result" && scan.scored && canAddScan()) {
+      var n = scan.scored.total, side = scan.side;
+      closeScan();
+      addPoints(side, n);
+    }
+  });
+  scanEl.retake.addEventListener("click", function () { scan.reading = null; clearShot(); startCamera(); });
+  scanEl.cancel.addEventListener("click", closeScan);
+  scanDlg.addEventListener("cancel", function (e) { e.preventDefault(); closeScan(); });
+  document.addEventListener("visibilitychange", function () {
+    // Let go of the camera when the app goes to the background
+    if (document.visibilityState === "hidden" && scan.stream) { stopCamera(); if (scan.phase === "camera") scanPhase("camera"); }
+    else if (document.visibilityState === "visible" && scanDlg.open && scan.phase === "camera" && !scan.stream) startCamera();
+  });
+
   // ---------- Share and install ----------
   var APP_URL = "https://brettmusco-code.github.io/Cribbage-/";
   var inClaude = !!(window.claude && typeof window.claude.use === "function");
@@ -3179,6 +3686,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   if (hot && typeof hot.ready === "function") hot.ready(start);
   else start((hot && hot.data) || {});
   startStore();
+  checkScan();
 })();
 </script>
 

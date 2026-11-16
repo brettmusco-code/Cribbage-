@@ -10,6 +10,7 @@ A cribbage pegging board for your phone. Tap to score, and the pegs leapfrog alo
 - **One-tap scoring.** Quick buttons for +1 to +8, +10 and +12, plus an "Other" box for any amount.
 - **2, 3 or 4 players, or partners (2 v 2).** Partners share a lane; you pick which partner scored so each person's stats stay accurate.
 - **Guided counting.** Each hand goes pegging, then each hand in order from the dealer's left, then the crib. The deal passes on its own, and the game ends the moment someone reaches 121.
+- **Scan a hand.** Tap the camera button on a player's card, photograph the four cards with the cut card above them, and the app reads the cards and counts the hand: fifteens, pairs, runs, flush (the crib needs all five suited) and nobs. Check the breakdown, then tap **Add**. The photo is never saved: it's sent to Claude to read the cards and then thrown away. Needs the sync server with an Anthropic API key (below).
 - **Undo** for every step, including a win.
 - **Skunk and double-skunk detection**, a match tally, a running match total of points for each player (finished games plus the one in progress), and the loser deals first in the next game.
 - **Easy-to-read board**: large hole numbers, lanes painted in each player's colour, arrows at every turn, skunk lines spelled out, and a tag in each player's colour showing their score beside their lead peg.
@@ -71,6 +72,16 @@ The server is a small Cloudflare Worker in [`server/`](server/). It runs on Clou
    ```
 
 After that, any change under `server/` pushed to `main` redeploys automatically. Each deploy ends with a check (`server/smoke-test.mjs`) that the server answers, passes live updates between two connections, lists a table and hides it again, and saves and deletes a game.
+
+### Turn on hand scanning (optional)
+
+Scanning reads photos with Claude through the sync server, using your Anthropic API key. Each scan costs about a cent or less.
+
+1. Get an API key at [console.anthropic.com](https://console.anthropic.com) (Settings → API keys).
+2. In this repository on GitHub: **Settings → Secrets and variables → Actions → New repository secret**. Name it `ANTHROPIC_API_KEY` and paste the key.
+3. **Actions → Deploy sync server → Run workflow.**
+
+The camera button appears on each player's card once the server has a key. To keep the key from being run up, the server allows 40 scans per phone per hour and 400 in total per day; set a `SCAN_DAILY_LIMIT` variable on the Worker in Cloudflare to change the daily cap.
 
 To run the server on your own computer: `cd server && npm install && npm run dev`, then set the meta tag to `http://127.0.0.1:8787`.
 

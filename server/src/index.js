@@ -1,6 +1,9 @@
 // Cribbage sync server.
 //
-//   GET    /health                     → { ok: true }
+//   GET    /health                     → { ok: true, scan } (scan: whether hand scanning is set up)
+//   POST   /scan                       → read the cards in a photo: { image: base64, type } → { hand, cut, note }
+//                                        The photo is passed to Claude and not kept. Needs the
+//                                        ANTHROPIC_API_KEY secret; capped per phone and per day.
 //   GET    /tables                     → { tables: [...] } tables in use that are listed, busiest first
 //   DELETE /t/<table>                  → delete the table: its game, its finished games and its list entry.
 //                                        Needs the X-Owner-Key header from the phone that started the table.
@@ -24,6 +27,7 @@
 // `listed: false`; hidden tables can still be joined by name. Sizes are capped
 // so one table can't grow without limit.
 import { DurableObject } from "cloudflare:workers";
+import { readHand } from "./scan.js";
 
 const MAX_STATE = 120 * 1024;   // one live game, including its undo steps
 const MAX_GAME = 64 * 1024;     // one finished game
@@ -34,6 +38,8 @@ const HOUR = 60 * 60 * 1000;
 const LISTED_FOR = 24 * HOUR;    // a table stays in the list for a day after its last change
 const KEEP_FOR = 7 * 24 * HOUR;  // directory entries are dropped after a week
 const CONNECTED_FOR = 6 * HOUR;  // connection counts older than this are treated as stale
+const SCANS_PER_HOUR = 40;       // scans one phone (by IP address) may make in an hour
+const SCANS_PER_DAY = 400;       // scans everyone together may make in a day (SCAN_DAILY_LIMIT overrides)
 
 async function sha256(text) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -69,7 +75,7 @@ function summarize(name, doc, devices) {
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, PUT, POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, X-Owner-Key",
   "Access-Control-Max-Age": "86400",
 };
@@ -81,11 +87,32 @@ function json(data, status = 200) {
   });
 }
 
+// Read a photo of a hand. Each phone and the whole server have a cap so the
+// API key can't be run up by someone who finds the address.
+async function scan(req, env) {
+  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  if (!env.ANTHROPIC_API_KEY) return json({ error: "scan_not_configured" }, 503);
+  const size = Number(req.headers.get("Content-Length") || 0);
+  if (size > 3 * 1024 * 1024) return json({ error: "bad_image" }, 413);
+  let body;
+  try { body = await req.json(); } catch { return json({ error: "bad_image" }, 400); }
+  if (!body || typeof body.image !== "string" || !body.image) return json({ error: "bad_image" }, 400);
+  const who = await sha256("scan:" + (req.headers.get("CF-Connecting-IP") || "unknown"));
+  const perDay = Number(env.SCAN_DAILY_LIMIT) > 0 ? Number(env.SCAN_DAILY_LIMIT) : SCANS_PER_DAY;
+  const allowed = await lobby(env).meter(who.slice(0, 32), SCANS_PER_HOUR, perDay);
+  if (!allowed) return json({ error: "too_many_scans" }, 429);
+  const { status, data } = await readHand(env, body);
+  return json(data, status);
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
-    if (url.pathname === "/" || url.pathname === "/health") return json({ ok: true, service: "cribbage-sync" });
+    if (url.pathname === "/" || url.pathname === "/health") {
+      return json({ ok: true, service: "cribbage-sync", scan: !!env.ANTHROPIC_API_KEY });
+    }
+    if (url.pathname === "/scan") return scan(req, env);
     if (url.pathname === "/tables" && req.method === "GET") return json({ tables: await lobby(env).list() });
     const m = url.pathname.match(/^\/t\/([^/]+)(\/.*)?$/);
     if (!m || !TABLE_RE.test(m[1])) return json({ error: "not_found" }, 404);
@@ -247,6 +274,23 @@ export class Lobby extends DurableObject {
 
   async remove(name) {
     if (TABLE_RE.test(String(name))) await this.ctx.storage.delete("t:" + name);
+  }
+
+  // Count one scan; false if this phone or the whole server is over its cap
+  async meter(who, perHour, perDay) {
+    const now = Date.now();
+    const dayKey = "s:d:" + new Date(now).toISOString().slice(0, 10);
+    const hourKey = "s:h:" + Math.floor(now / HOUR) + ":" + String(who).slice(0, 32);
+    const [day, hour] = await Promise.all([this.ctx.storage.get(dayKey), this.ctx.storage.get(hourKey)]);
+    if ((day || 0) >= perDay || (hour || 0) >= perHour) return false;
+    await this.ctx.storage.put({ [dayKey]: (day || 0) + 1, [hourKey]: (hour || 0) + 1 });
+    if (!day || day % 25 === 0) {
+      // Drop counts from earlier hours and days
+      const old = [...(await this.ctx.storage.list({ prefix: "s:" })).keys()]
+        .filter((k) => k !== dayKey && !k.startsWith("s:h:" + Math.floor(now / HOUR) + ":"));
+      if (old.length) await this.ctx.storage.delete(old.slice(0, 128));
+    }
+    return true;
   }
 
   async list() {
