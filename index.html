@@ -1727,7 +1727,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
   function render(animate) {
     document.getElementById("gameNo").textContent =
-      "Game " + state.game + (state.wins.some(Boolean) ? " · Match " + state.wins.join("–") : "");
+      "Game " + gameNumber() + (state.wins.some(Boolean) ? " · Match " + state.wins.join("–") : "");
     placePegs(animate);
     renderCards();
     renderHandBar();
@@ -1836,7 +1836,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     commit(true);
   }
 
-  function resetBoard(nextDealer, nextGameNo) {
+  // Game N means N-1 games have been finished; games abandoned with New game don't count
+  function gameNumber() {
+    var finished = state.wins.reduce(function (a, w) { return a + (w || 0); }, 0);
+    return state.winner === null ? finished + 1 : Math.max(1, finished);
+  }
+
+  function resetBoard(nextDealer) {
     state.sides.forEach(function (sd) { sd.score = 0; sd.back = 0; sd.last = null; });
     state.moves = [];
     state.undo = [];
@@ -1844,7 +1850,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     state.recordId = null;
     state.dealer = nextDealer;
     state.phase = "peg"; state.step = 0; state.hand = 1;
-    state.game = nextGameNo;
+    state.game = gameNumber();
     commit(true);
   }
 
@@ -1855,7 +1861,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       d = (d + 1) % state.count;
       for (var i = 0; i < state.count && sideOf(d) === state.winner; i++) d = (d + 1) % state.count;
     }
-    resetBoard(d, state.game + 1);
+    resetBoard(d);
   }
 
   var newBtn = document.getElementById("newGame");
@@ -1870,7 +1876,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!inProgress || newBtn.classList.contains("confirm")) {
       disarmNew();
       if (state.winner !== null) nextGame();
-      else resetBoard(state.dealer, state.moves.length ? state.game + 1 : state.game);
+      else resetBoard(state.dealer);
       return;
     }
     newBtn.classList.add("confirm");
@@ -1908,7 +1914,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       v: 2,
       id: state.recordId || newId(),
       endedAt: Date.now(),
-      gameNo: state.game,
+      gameNo: gameNumber(),
       mode: state.mode,
       winner: state.winner,
       sides: state.sides.map(function (sd, s) { return { name: sideName(s), score: sd.score, peg: s }; }),
