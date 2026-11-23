@@ -1993,18 +1993,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function runningTotal(side) {
     return matchBase()[side] + (state.winner === null ? state.sides[side].score : 0);
   }
-  // The "This match" panel on the History tab, shown once a game in the match has finished
+  // The "This match" panel on the History tab
   function renderMatch() {
     var panel = document.getElementById("matchPanel");
     if (!panel || !state) return;
     var done = finishedGames();
-    panel.hidden = !done;
-    if (!done) return;
+    panel.hidden = false;
     var n = nSides(), totals = [], s;
     for (s = 0; s < n; s++) totals.push(runningTotal(s));
     var top = Math.max.apply(null, totals);
-    var tied = totals.filter(function (t) { return t === top; }).length > 1;
-    document.getElementById("matchStatus").textContent = state.winner === null
+    var tied = top === 0 || totals.filter(function (t) { return t === top; }).length > 1;
+    document.getElementById("matchStatus").textContent = !done
+      ? "Game 1 in progress"
+      : state.winner === null
       ? done + (done === 1 ? " game" : " games") + " finished · game " + gameNumber() + " in progress"
       : done + (done === 1 ? " game" : " games") + " finished";
     document.getElementById("matchList").innerHTML = totals.map(function (t, i) {
@@ -3731,7 +3732,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // Offline support and home-screen install when served over https (for example GitHub Pages)
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
     window.addEventListener("load", function () {
-      navigator.serviceWorker.register("sw.js").catch(function () {});
+      navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(function (reg) {
+        // An installed app can stay open for days: look for a new version each time it comes back
+        document.addEventListener("visibilitychange", function () {
+          if (document.visibilityState === "visible") reg.update().catch(function () {});
+        });
+      }).catch(function () {});
+    });
+    // A new version took over: reload once to show it (the game is saved on the phone)
+    var hadController = !!navigator.serviceWorker.controller, reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      if (!hadController || reloaded) { hadController = true; return; }
+      reloaded = true;
+      location.reload();
     });
   }
 </script>

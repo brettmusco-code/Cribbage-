@@ -1,5 +1,5 @@
 // Offline cache for the cribbage board. Bump CACHE when the app shell changes.
-const CACHE = "cribbage-v16";
+const CACHE = "cribbage-v17";
 const SHELL = [
   "./",
   "./index.html",
@@ -12,7 +12,12 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // Fetch fresh copies, not ones the browser kept from GitHub Pages' 10-minute cache
+  event.waitUntil(
+    caches.open(CACHE)
+      .then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -28,10 +33,11 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
 
-  // Pages: try the network first so updates arrive, fall back to the cached app offline
+  // Pages: always ask the network for the newest copy so updates arrive at once,
+  // and fall back to the cached app offline
   if (req.mode === "navigate") {
     event.respondWith(
-      fetch(req)
+      fetch(req.url, { cache: "no-cache", credentials: "same-origin" })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put("./index.html", copy));
