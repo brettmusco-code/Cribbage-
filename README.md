@@ -12,7 +12,7 @@ A cribbage pegging board for your phone. Tap to score, and the pegs leapfrog alo
 - **Guided counting.** Each hand goes pegging, then each hand in order from the dealer's left, then the crib. The deal passes on its own, and the game ends the moment someone reaches 121.
 - **Scan a hand.** Tap the camera button on a player's card, photograph the four cards with the cut card above them, and the app reads the cards and counts the hand: fifteens, pairs, runs, flush (the crib needs all five suited) and nobs. Check the breakdown, then tap **Add**. The photo is never saved: it's sent to Claude to read the cards and then thrown away. Needs the sync server with an Anthropic API key (below).
 - **Undo** for every step, including a win.
-- **Skunk and double-skunk detection**, a match tally, a running match total of points for each player (finished games plus the one in progress), and the loser deals first in the next game.
+- **Skunk and double-skunk detection**, a match tally, match points on the History tab (each finished game's final score plus the game in progress), and the loser deals first in the next game.
 - **Easy-to-read board**: large hole numbers, lanes painted in each player's colour, arrows at every turn, skunk lines spelled out, and a tag in each player's colour showing their score beside their lead peg.
 - **Five board designs**, each with its own track shape. Pick one in Settings:
   - **Walnut, Classic:** four straight streets that run back and forth.

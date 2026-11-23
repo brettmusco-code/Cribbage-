@@ -298,7 +298,7 @@ button { cursor: pointer; }
 .score.bump { animation: bump .45s ease-out; }
 @keyframes bump { 0% { transform: scale(1); } 35% { transform: scale(1.12); color: var(--pc); } 100% { transform: scale(1); } }
 .meta { display: grid; gap: 1px; padding-bottom: 4px; color: var(--muted); font-size: .95rem; font-variant-numeric: tabular-nums; }
-.meta .last b, .meta .total b { color: var(--ink); font-weight: 700; }
+.meta .last b { color: var(--ink); font-weight: 700; }
 .progress { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--pc) 12%, var(--line)); overflow: hidden; }
 .progress i { display: block; height: 100%; width: 0; background: var(--pc); border-radius: 3px; transition: width .5s cubic-bezier(.3,.75,.2,1); }
 
@@ -528,6 +528,15 @@ table.data .res { display: block; color: var(--muted); font-size: .8rem; margin:
 
 .hist-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .hist-status { color: var(--muted); font-size: .85rem; }
+.match-panel { margin-bottom: 14px; }
+.match-list { list-style: none; margin: 0 0 4px; padding: 0; }
+.match-list li { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
+.match-list li:first-child { border-top: 0; }
+.match-list .pl { flex: 1 1 auto; min-width: 0; max-width: none; font-weight: 700; }
+.match-list .ml-wins { color: var(--muted); font-size: .9rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.match-list .ml-pts { min-width: 4ch; text-align: right; font-family: var(--font-num); font-weight: 700; font-size: 1.7rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.match-list .ml-pts small { display: block; font-family: var(--font-body); font-weight: 400; font-size: .72rem; color: var(--muted); }
+.match-list li.lead .ml-pts { color: var(--accent); }
 .games { list-style: none; margin: 0; padding: 0; display: grid; }
 .games li { border-top: 1px solid var(--line); }
 .games li:first-child { border-top: 0; }
@@ -740,6 +749,14 @@ dialog h3 {
   </div>
 
   <div class="view" id="viewHistory" role="tabpanel" aria-labelledby="tabHistory" hidden>
+  <section class="panel match-panel" id="matchPanel" aria-labelledby="matchTitle" hidden>
+    <div class="hist-head">
+      <h2 id="matchTitle">This match</h2>
+      <span class="hist-status" id="matchStatus"></span>
+    </div>
+    <ul class="match-list" id="matchList"></ul>
+    <p class="hint">Match points add up each finished game's final score, plus the game in progress. Games ended with New game don't count.</p>
+  </section>
   <section class="panel" aria-labelledby="histTitle">
     <div class="hist-head">
       <h2 id="histTitle">Player history</h2>
@@ -1676,7 +1693,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           '</div>' + scorers +
           '<div class="score-row">' +
             '<span class="score" aria-live="polite">0</span>' +
-            '<div class="meta"><span class="togo"></span><span class="last"></span><span class="total" hidden></span></div>' +
+            '<div class="meta"><span class="togo"></span><span class="last"></span></div>' +
             '<button type="button" class="scan-btn" hidden aria-label="Scan the cards to count a hand">' +
               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' +
               '<span class="lbl">Scan</span>' +
@@ -1734,7 +1751,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           score: card.querySelector(".score"),
           togo: card.querySelector(".togo"),
           last: card.querySelector(".last"),
-          total: card.querySelector(".total"),
           bar: card.querySelector(".progress i"),
           who: card.querySelectorAll(".who"),
           scan: card.querySelector(".scan-btn"),
@@ -1745,6 +1761,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
 
   function renderCards() {
+    renderMatch();
     var top = Math.max.apply(null, state.sides.map(function (x) { return x.score; }));
     var over = state.winner !== null;
     var cur = currentCount();
@@ -1763,8 +1780,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       c.score.textContent = sd.score;
       c.togo.textContent = sd.score >= 121 ? "Winner" : (121 - sd.score) + " to go";
       c.last.innerHTML = sd.last ? "Last <b>+" + sd.last + "</b>" : "&nbsp;";
-      c.total.hidden = !finishedGames();
-      if (!c.total.hidden) c.total.innerHTML = "Match <b>" + runningTotal(s) + "</b>";
       c.bar.style.width = (Math.min(sd.score, 121) / 121 * 100) + "%";
       var isTurn = !!cur && sideOf(cur.p) === s;
       c.card.classList.toggle("turn", isTurn);
@@ -1977,6 +1992,28 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function runningTotal(side) {
     return matchBase()[side] + (state.winner === null ? state.sides[side].score : 0);
+  }
+  // The "This match" panel on the History tab, shown once a game in the match has finished
+  function renderMatch() {
+    var panel = document.getElementById("matchPanel");
+    if (!panel || !state) return;
+    var done = finishedGames();
+    panel.hidden = !done;
+    if (!done) return;
+    var n = nSides(), totals = [], s;
+    for (s = 0; s < n; s++) totals.push(runningTotal(s));
+    var top = Math.max.apply(null, totals);
+    var tied = totals.filter(function (t) { return t === top; }).length > 1;
+    document.getElementById("matchStatus").textContent = state.winner === null
+      ? done + (done === 1 ? " game" : " games") + " finished · game " + gameNumber() + " in progress"
+      : done + (done === 1 ? " game" : " games") + " finished";
+    document.getElementById("matchList").innerHTML = totals.map(function (t, i) {
+      var w = state.wins[i] || 0;
+      return '<li' + (!tied && t === top ? ' class="lead"' : '') + '>' +
+        '<span class="pl"><span class="sw" style="--pc:' + COLORS[i] + '"></span><span>' + esc(sideName(i)) + '</span></span>' +
+        '<span class="ml-wins">' + (w === 1 ? "1 win" : w + " wins") + '</span>' +
+        '<span class="ml-pts">' + t + '<small>points</small></span></li>';
+    }).join("");
   }
 
   // Game N means N-1 games have been finished; games abandoned with New game don't count
@@ -2645,8 +2682,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
 
   function renderHistory() {
-    // A match from before totals were kept fills its totals in from History, so redraw the cards once it loads
-    if (state && cards.length && !Array.isArray(state.matchPoints)) renderCards();
+    // A match from before totals were kept fills its totals in from History, so redraw them once it loads
+    if (state && !Array.isArray(state.matchPoints)) renderMatch();
     var root = document.getElementById("histBody");
     document.getElementById("histCount").textContent = games.length ? String(games.length) : "";
     if (!games.length) {

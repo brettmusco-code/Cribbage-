@@ -1,5 +1,5 @@
 // Offline cache for the cribbage board. Bump CACHE when the app shell changes.
-const CACHE = "cribbage-v15";
+const CACHE = "cribbage-v16";
 const SHELL = [
   "./",
   "./index.html",
