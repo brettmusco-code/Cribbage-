@@ -187,7 +187,8 @@ button { cursor: pointer; }
 .win-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Toolbar */
-.toolbar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.toolbar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.toolbar .tb { min-height: 36px; font-size: .92rem; }
 .tb {
   min-width: 0;
   min-height: 42px;
@@ -215,23 +216,26 @@ button { cursor: pointer; }
 
 /* Hand guide */
 .handbar {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
-  padding: 12px 14px; display: grid; gap: 8px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 10px; display: grid; gap: 6px;
 }
-.hb-top { display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; }
-.hb-title { display: flex; align-items: baseline; gap: 2px 10px; flex-wrap: wrap; min-width: 0; }
-.hb-title strong { font-family: var(--font-display); font-size: 1.15rem; }
-.hb-title span { color: var(--muted); font-size: .9rem; }
-.hb-btn { min-height: 38px; padding: 0 14px; flex: none; }
-.hb-tip { margin: 0; font-size: .9rem; color: var(--muted); }
+.hb-top { display: flex; align-items: center; gap: 8px; }
+.hb-title { display: flex; align-items: baseline; gap: 6px; min-width: 0; flex: 1 1 auto; white-space: nowrap; }
+.hb-title strong { font-family: var(--font-display); font-size: 1rem; flex: none; }
+.hb-title span { color: var(--muted); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.hb-btn { min-height: 34px; padding: 0 12px; flex: none; font-size: .9rem; }
+.hb-undo { min-height: 34px; padding: 0 10px; flex: none; font-size: .9rem; }
+.hb-tip { margin: 0; font-size: .82rem; color: var(--muted); line-height: 1.3; }
 .hb-tip b { color: var(--ink); }
-.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.steps { list-style: none; margin: 0 -10px; padding: 0 10px; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.steps::-webkit-scrollbar { display: none; }
+.steps li { flex: none; }
 .steps li {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 3px 10px 3px 8px; border-radius: 999px; border: 1px solid var(--line);
-  font-size: .88rem; color: var(--muted); white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 1px 8px 1px 7px; border-radius: 999px; border: 1px solid var(--line);
+  font-size: .8rem; color: var(--muted); white-space: nowrap;
 }
-.steps li .sw { width: 8px; height: 8px; }
+.steps li .sw { width: 7px; height: 7px; }
 .steps li.done { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
 .steps li.cur { color: var(--ink); font-weight: 700; border-color: var(--accent); background: var(--accent-soft); }
 
@@ -329,6 +333,8 @@ button { cursor: pointer; }
   font-family: var(--font-num); font-size: 1.3rem; font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+.custom input { -moz-appearance: textfield; appearance: textfield; }
+.custom input::-webkit-outer-spin-button, .custom input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .custom input::placeholder { font-family: var(--font-body); font-weight: 400; font-size: 1rem; color: var(--muted); }
 .custom button {
   height: 46px; padding: 0 18px; border-radius: 10px; border: 0;
@@ -348,6 +354,13 @@ button { cursor: pointer; }
 }
 .scan-btn[hidden] { display: none; }
 .score-row .scan-btn { margin-left: auto; align-self: center; }
+.zero-btn {
+  margin-left: auto; align-self: center; flex: none; min-height: 32px; padding: 0 12px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--pc) 45%, var(--line)); background: color-mix(in srgb, var(--pc) 10%, var(--surface));
+  font-weight: 600; font-size: .85rem; white-space: nowrap; touch-action: manipulation;
+}
+.zero-btn:not([hidden]) + .scan-btn { margin-left: 0; }
+.meta { min-width: 0; }
 .scan-btn svg { width: 18px; height: 18px; flex: none; }
 .scan-btn:disabled { opacity: .4; cursor: default; }
 .players.over .scan-btn { display: none; }
@@ -685,6 +698,45 @@ dialog h3 {
   .progress i, .board .peg-inner, .board .tag { transition: none; }
   .score.bump, .board.won .finish-ring { animation: none; }
 }
+
+/* Keep the board the star: collapsible move log, and on phones a wider board with slimmer scoring cards */
+.log summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.log summary::-webkit-details-marker { display: none; }
+.log summary h2 { margin: 0; }
+.log summary::after { content: ""; width: 7px; height: 7px; border-right: 1.6px solid var(--muted); border-bottom: 1.6px solid var(--muted); transform: rotate(45deg); margin: -3px 4px 0 0; transition: transform .2s; }
+.log[open] summary::after { transform: rotate(-135deg); margin-top: 3px; }
+.log[open] summary { margin-bottom: 8px; }
+@media (max-width: 759px) {
+  .app { padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: max(10px, env(safe-area-inset-right, 0px)); gap: 10px; padding-top: 10px; }
+  .view { gap: 10px; }
+  .panel.log { padding: 10px 12px; }
+
+  .card { padding: 10px; gap: 8px; border-radius: 12px; }
+  .score { font-size: 2.6rem; }
+  .meta { font-size: .85rem; }
+  .progress { height: 4px; }
+  .quick { gap: 6px; }
+  .q { height: 38px; font-size: 1.15rem; border-radius: 8px; }
+  .custom input, .custom button { height: 38px; }
+
+  .players.pairs { gap: 8px; }
+  .pairs .card { padding: 8px; gap: 6px; }
+  .pairs .score { font-size: 2rem; }
+  .pairs .meta { font-size: .76rem; }
+  .pairs .quick { grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .pairs .q { height: 32px; font-size: 1rem; border-radius: 7px; }
+  .pairs .q small { font-size: .75em; }
+  .pairs .score-row { gap: 6px; }
+  .pairs .zero-btn { min-height: 28px; padding: 0 8px; font-size: .74rem; }
+  .pairs .custom { grid-column: span 2; }
+  .pairs .custom { gap: 4px; }
+  .pairs .custom input, .pairs .custom button { height: 32px; border-radius: 7px; }
+  .pairs .custom input { padding: 0; font-size: 1rem; flex: 1 1 0; }
+  .pairs .custom input::placeholder { font-size: .72rem; }
+  .pairs .custom button { padding: 0 5px; font-size: .76rem; }
+  .players.n3 .score { font-size: 2.4rem; }
+  .players.n3 .q { height: 36px; font-size: 1.1rem; }
+}
 </style>
 </head>
 <body>
@@ -709,19 +761,15 @@ dialog h3 {
   </nav>
 
   <div class="view" id="viewGame" role="tabpanel" aria-labelledby="tabGame">
-  <section class="board" id="boardWrap" aria-label="Cribbage board">
-    <svg id="board" role="img" aria-label="Cribbage board"></svg>
-  </section>
-
   <nav class="toolbar" aria-label="Game controls">
-    <button class="tb" id="undo" type="button">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3 2 6l3 3"/><path d="M2 6h7.5a4 4 0 0 1 0 8H7"/></svg>
-      Undo
-    </button>
     <button class="tb" id="passDeal" type="button">Pass deal</button>
     <button class="tb" id="newGame" type="button">New game</button>
     <button class="tb" id="openSetup" type="button">Settings</button>
   </nav>
+
+  <section class="board" id="boardWrap" aria-label="Cribbage board">
+    <svg id="board" role="img" aria-label="Cribbage board"></svg>
+  </section>
 
   <section class="handbar" id="handbar" aria-live="polite" hidden></section>
 
@@ -741,10 +789,10 @@ dialog h3 {
 
   <section class="players" id="players" aria-label="Scoring"></section>
 
-  <section class="panel log" aria-label="Move history">
-    <h2>Moves this game</h2>
+  <details class="panel log" aria-label="Move history">
+    <summary><h2>Moves this game</h2></summary>
     <ol id="log"></ol>
-  </section>
+  </details>
 
   </div>
 
@@ -1694,6 +1742,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           '<div class="score-row">' +
             '<span class="score" aria-live="polite">0</span>' +
             '<div class="meta"><span class="togo"></span><span class="last"></span></div>' +
+            '<button type="button" class="zero-btn" hidden>No points</button>' +
             '<button type="button" class="scan-btn" hidden aria-label="Scan the cards to count a hand">' +
               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' +
               '<span class="lbl">Scan</span>' +
@@ -1738,6 +1787,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         input.addEventListener("input", function () { err.textContent = ""; });
         card.querySelector(".name").addEventListener("click", openSetup);
         card.querySelector(".scan-btn").addEventListener("click", function () { openScan(s); });
+        card.querySelector(".zero-btn").addEventListener("click", function () { var c = currentCount(); if (c) addPoints(sideOf(c.p), 0); });
         card.querySelectorAll(".who").forEach(function (b) {
           b.addEventListener("click", function () { scorerSel[s] = Number(b.getAttribute("data-p")); renderCards(); });
         });
@@ -1754,6 +1804,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           bar: card.querySelector(".progress i"),
           who: card.querySelectorAll(".who"),
           scan: card.querySelector(".scan-btn"),
+          zero: card.querySelector(".zero-btn"),
           buttons: card.querySelectorAll("button.q, form button, form input, .scan-btn")
         });
       })(s);
@@ -1786,6 +1837,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       c.card.classList.toggle("waiting", !!cur && !isTurn);
       c.card.classList.toggle("leading", !cur && top > 0 && sd.score === top);
       c.pill.hidden = !isTurn;
+      c.zero.hidden = !isTurn || over;
       if (isTurn) c.pill.textContent = cur.k === "crib" ? "Counting crib" : "Counting hand";
       var locked = over || (!!cur && !isTurn);
       c.buttons.forEach(function (b) { b.disabled = locked; });
@@ -1803,30 +1855,28 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   // ---------- Hand guide ----------
   var handbar = document.getElementById("handbar");
   function renderHandBar() {
-    if (!state.guided || state.winner !== null) { handbar.hidden = true; return; }
+    if (state.winner !== null) { handbar.hidden = true; return; }
     handbar.hidden = false;
+    var undoBtn = '<button type="button" class="tb hb-undo" id="undo"' + (state.undo.length ? '' : ' disabled') + '>' +
+      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3 2 6l3 3"/><path d="M2 6h7.5a4 4 0 0 1 0 8H7"/></svg>Undo</button>';
+    if (!state.guided) {
+      handbar.innerHTML = '<div class="hb-top"><div class="hb-title"><strong>' + esc(pname(state.dealer)) + ' deals</strong></div>' + undoBtn + '</div>';
+      document.getElementById("undo").addEventListener("click", undo);
+      return;
+    }
     var order = countOrder(), cur = currentCount();
     var steps = '<li class="' + (state.phase === "peg" ? "cur" : "done") + '">Pegging</li>' + order.map(function (o, i) {
       var cls = state.phase === "peg" ? "" : i < state.step ? "done" : i === state.step ? "cur" : "";
       return '<li class="' + cls + '" style="--pc:' + COLORS[sideOf(o.p)] + '"><span class="sw"></span>' +
         esc(pname(o.p)) + (o.k === "crib" ? "'s crib" : "") + '</li>';
     }).join("");
-    var btn, tip;
-    if (state.phase === "peg") {
-      btn = '<button type="button" class="btn-solid hb-btn" id="donePeg">Pegging done</button>';
-      tip = 'Score pegging as you play, including go and last card.';
-    } else {
-      btn = '<button type="button" class="btn-ghost hb-btn" id="zeroPts">No points</button>';
-      tip = 'Count <b>' + esc(pname(cur.p)) + "'s " + (cur.k === "crib" ? "crib" : "hand") + '</b>, then tap the total on their card.';
-    }
+    var btn = state.phase === "peg" ? '<button type="button" class="btn-solid hb-btn" id="donePeg">Pegging done</button>' : '';
     handbar.innerHTML =
-      '<div class="hb-top"><div class="hb-title"><strong>Hand ' + state.hand + '</strong><span>' + esc(pname(state.dealer)) + ' deals</span></div>' + btn + '</div>' +
-      '<ol class="steps">' + steps + '</ol>' +
-      '<p class="hb-tip">' + tip + '</p>';
+      '<div class="hb-top"><div class="hb-title"><strong>Hand ' + state.hand + '</strong><span>' + esc(pname(state.dealer)) + ' deals</span></div>' + undoBtn + btn + '</div>' +
+      '<ol class="steps">' + steps + '</ol>';
+    document.getElementById("undo").addEventListener("click", undo);
     var d = document.getElementById("donePeg");
     if (d) d.addEventListener("click", donePegging);
-    var z = document.getElementById("zeroPts");
-    if (z) z.addEventListener("click", function () { var c = currentCount(); if (c) addPoints(sideOf(c.p), 0); });
   }
 
   function renderLog() {
@@ -1881,7 +1931,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       win.hidden = true;
     }
     renderRecapPanel();
-    document.getElementById("undo").disabled = !state.undo.length;
     document.getElementById("passDeal").disabled = state.winner !== null;
   }
 
@@ -2065,7 +2114,6 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     confirmTimer = setTimeout(disarmNew, 3000);
   });
 
-  document.getElementById("undo").addEventListener("click", undo);
   document.getElementById("winUndo").addEventListener("click", undo);
   document.getElementById("nextGame").addEventListener("click", nextGame);
   document.getElementById("passDeal").addEventListener("click", function () {
