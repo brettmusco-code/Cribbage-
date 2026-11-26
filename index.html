@@ -3628,14 +3628,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     deleteTable(name);
   }
   var deleting = null;
+  // Off a table the board starts over: a new match with new players, same kind of game
+  function freshBoard() {
+    state = freshState(state.mode, state.count, null, state.guided);
+    saveLocal();
+    buildBoard();
+    buildCards();
+    render(false);
+  }
   function leaveLive(name) {
     livePref = { on: false, table: name };
     saveLivePref();
     stopLive();
+    freshBoard();
     startHistory();
   }
   function deleteTable(name) {
-    var mine = mineTables()[name], here = atTable() === name;
+    var mine = mineTables()[name];
     deleting = name;
     getBackend().then(function (b) { return b.deleteTable(name, mine && mine.key); }).then(function () {
       // The server's notice may already have taken this phone off the table
@@ -3644,7 +3653,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       forgetMine(name);
       tables = (tables || []).filter(function (t) { return t.name !== name; });
       if (tablesDlg.open) renderTables();
-      toast("Deleted table " + name + "." + (here ? " This game stays on your phone." : ""));
+      toast("Deleted table " + name + ".");
     }, function (e) {
       deleting = null;
       if (tablesDlg.open) renderTables();
@@ -3658,17 +3667,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     leaveLive(name);
     forgetMine(name);
     if (tablesDlg.open) renderTables();
-    if (deleting !== name) toast("Table " + name + " was deleted. This game stays on your phone.");
+    if (deleting !== name) toast("Table " + name + " was deleted. The board starts a new match.");
   }
 
   function leaveTable() {
     var was = livePref.table;
-    livePref = { on: false, table: livePref.table };
-    saveLivePref();
-    stopLive();
-    startHistory();
+    leaveLive(was);
     renderTables();
-    toast("Left table " + was + ". This game stays on your phone.");
+    toast("Left table " + was + ". The board starts a new match.");
   }
 
   function suggestName() {

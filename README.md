@@ -48,11 +48,12 @@ The site is live a minute or two later.
 Tap **Play live** at the top of the app.
 
 - **Open tables** lists the tables in use, with their players, scores, game number and how many phones are connected. Tap **Join** to sit down at one.
-- **Start or join by name**: type a new name to start a table with your current game, or the name of a hidden table to join it. A name made from the players' names is filled in for you.
+- **Start or join by name**: type a new name to start a table, or the name of a hidden table to join it. A new table starts a new match and opens Settings for the players' names; if this phone has a game in progress, it asks first and offers to bring that game along instead. A name made from the players' names is filled in for you.
 - At a table, everyone sees and scores the same game on their own phone, and finished games are shared with the table.
 - **Show this table in the list** is on for new tables. Turn it off to keep a table private; people can still join by typing its name.
 - If this phone has a game of its own (not at a table), joining asks first, because the table's game replaces it.
-- **Delete a table**: only the phone that started a table can delete it, with **Delete table** (while at it) or the trash button beside it in the list. It asks for a second tap, then removes the table, its game and its shared history for everyone. Phones at the table are told and keep their game; finished games stay in each phone's History. The sync server checks a secret key that only the starting phone holds, so other phones can't delete a table even by calling the server directly. Tables started before creators were recorded can be deleted by anyone.
+- **Leave** takes this phone off the table and starts the board over with a new match. The table's game stays at the table for the others, and you can join again to pick it back up.
+- **Delete a table**: only the phone that started a table can delete it, with **Delete table** (while at it) or the trash button beside it in the list. It asks for a second tap, then removes the table, its game and its shared history for everyone. Phones at the table are told and their boards start a new match; finished games stay in each phone's History. The sync server checks a secret key that only the starting phone holds, so other phones can't delete a table even by calling the server directly. Tables started before creators were recorded can be deleted by anyone.
 
 Tables leave the list after a day without changes. This copy of the app uses the server at `https://cribbage-sync.brettmusco.workers.dev`.
 
