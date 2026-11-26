@@ -607,6 +607,7 @@ dialog h3 {
 .hint { font-size: .85rem; color: var(--muted); margin: 2px 0 0; }
 .note { font-size: .9rem; color: var(--danger); margin: 0 0 14px; }
 .note:empty { display: none; }
+.linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); font-weight: 700; text-decoration: underline; cursor: pointer; }
 .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 14px; }
 .dlg-actions .left { margin-right: auto; }
 
@@ -894,7 +895,7 @@ dialog h3 {
     <input id="tblName" type="text" maxlength="24" autocomplete="off" autocapitalize="none" spellcheck="false">
     <button type="submit" class="btn-solid" id="tblGo">Go</button>
   </form>
-  <p class="hint" id="tblNewHint" style="margin-top: 6px">A new name starts a table and brings your current game. The name of a hidden table joins it.</p>
+  <p class="hint" id="tblNewHint" style="margin-top: 6px">A new name starts a table with a new match. The name of a hidden table joins it.</p>
   <div class="dlg-actions"><button type="button" class="btn-solid" id="tblClose" autofocus>Done</button></div>
 </dialog>
 
@@ -2956,7 +2957,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     document.getElementById("modeSolo").checked = state.mode === "solo";
     document.getElementById("modePartners").checked = state.mode === "partners";
     for (var c = 2; c <= MAXP; c++) document.getElementById("count" + c).checked = state.mode === "solo" && state.count === c;
-    for (var i = 0; i < MAXP; i++) document.getElementById("name" + i).value = state.names[i] || DEFAULT_NAMES[i];
+    // Default names show as hints, so new players can just type theirs
+    for (var i = 0; i < MAXP; i++) {
+      var nm = document.getElementById("name" + i);
+      nm.placeholder = DEFAULT_NAMES[i];
+      nm.value = state.names[i] && state.names[i] !== DEFAULT_NAMES[i] ? state.names[i] : "";
+    }
     document.getElementById("guided").checked = !!state.guided;
     styleAtOpen = boardStyle;
     var sr = document.getElementById("style-" + boardStyle);
@@ -3582,6 +3588,19 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     armedJoin = null;
     joinTable(name);
   }
+  // Start a table: a new match with new players (Settings opens for their names), or this phone's game
+  function startNewTable(name, bringGame) {
+    if (!bringGame) {
+      state = freshState(state.mode, state.count, null, state.guided);
+      buildBoard();
+      buildCards();
+      render(false);
+    }
+    state.listed = true;
+    saveLocal();
+    joinTable(name);
+    if (!bringGame) setTimeout(openSetup, 50);
+  }
   function joinTable(name) {
     livePref = { on: true, table: slug(name) };
     delete state.creator;
@@ -3659,11 +3678,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return base;
   }
 
-  var lastSuggestion = "", formArmed = null, formTimer = null;
+  var lastSuggestion = "", formArmed = null, formKind = null, formTimer = null;
   var tblName = document.getElementById("tblName"), tblGo = document.getElementById("tblGo"), tblNewHint = document.getElementById("tblNewHint");
-  var NEW_HINT = "A new name starts a table and brings your current game. The name of a hidden table joins it.";
+  var NEW_HINT = "A new name starts a table with a new match. The name of a hidden table joins it.";
   function disarmForm() {
     formArmed = null;
+    formKind = null;
     clearTimeout(formTimer);
     tblGo.textContent = "Go";
     tblGo.classList.remove("confirm");
@@ -3718,7 +3738,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     var raw = tblName.value.trim();
     if (!raw) { tblName.focus(); return; }
     var name = slug(raw);
-    if (formArmed === name) { disarmForm(); joinTable(name); return; }
+    if (formArmed === name) {
+      var kind = formKind;
+      disarmForm();
+      if (kind === "new") startNewTable(name, false); else joinTable(name);
+      return;
+    }
     if (atTable() === name) { closeTables(); return; }
     tblGo.disabled = true;
     tblGo.textContent = "…";
@@ -3728,6 +3753,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       var exists = !!(doc && validState(doc.state));
       if (exists && state.moves.length > 0 && !atTable()) {
         formArmed = name;
+        formKind = "join";
         tblGo.textContent = "Join anyway";
         tblGo.classList.add("confirm");
         tblNewHint.textContent = "Table " + name + " already has a game. Joining shows that game instead of the one on this phone.";
@@ -3735,9 +3761,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         formTimer = setTimeout(disarmForm, 6000);
         return;
       }
-      // A new table starts listed, with this phone's game
-      if (!exists) { state.listed = true; saveLocal(); }
-      joinTable(name);
+      if (exists) { joinTable(name); return; }
+      // A new table starts a new match. A game in progress on this phone (not at a table) is
+      // only replaced after a second tap, and can be brought along instead.
+      if (state.moves.length > 0 && state.winner === null && !atTable()) {
+        formArmed = name;
+        formKind = "new";
+        tblGo.textContent = "Start new match";
+        tblGo.classList.add("confirm");
+        tblNewHint.innerHTML = "Starts table " + esc(name) + " with a new match, replacing the game in progress on this phone. " +
+          '<button type="button" class="linkish" id="tblBring">Bring this game instead</button>';
+        document.getElementById("tblBring").addEventListener("click", function () { disarmForm(); startNewTable(name, true); });
+        clearTimeout(formTimer);
+        formTimer = setTimeout(disarmForm, 8000);
+        return;
+      }
+      startNewTable(name, false);
     }, function () {
       disarmForm();
       tblNewHint.textContent = "Couldn't reach table " + name + ". Check your connection and try again.";
